@@ -1,11 +1,11 @@
-import { useRef, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Printer, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { monedaDePais, formatMoneda } from '../lib/moneda'
 import { getConfig } from '../lib/config'
+import { getSession } from '../lib/auth'
 import type { Usuario, Asignacion, TipoAsignacionResponsiva, EquipoResponsiva, Responsiva } from '../types'
 
-const EMPRESA = 'FERCO Total Look'
 const SUBTITULO = 'Responsiva de Entrega de Equipos'
 const TEXTO_LEGAL =
   'Yo, {nombre}, certifico que asumo la responsabilidad de cualquier daño que pueda causar al equipo asignado. Me comprometo a garantizar su integridad, o a reemplazarlo o reembolsar el costo de reemplazo en caso de pérdida o daño irreparable por negligencia. Es mi responsabilidad notificar a soporte técnico cualquier desgaste, avería o necesidad de mantenimiento.'
@@ -31,8 +31,9 @@ export function buildEditorFromUsuario(
   usuario: Usuario,
   asignacionesActivas: Asignacion[]
 ): EditorData {
+  const session = getSession()
   return {
-    empresa: EMPRESA,
+    empresa: 'FERCO Total Look',       // overwritten by config on mount
     subtitulo: SUBTITULO,
     usuario_id: usuario.id,
     nombre: `${usuario.nombre} ${usuario.apellido}`,
@@ -41,7 +42,7 @@ export function buildEditorFromUsuario(
     centro_costo: usuario.centro_costo,
     pais: usuario.pais,
     tipo_asignacion: 'Asignación',
-    entregado_por: '',
+    entregado_por: session?.nombre ?? '',
     observaciones: '',
     texto_legal: TEXTO_LEGAL,
     fecha: new Date().toISOString().split('T')[0],
@@ -62,7 +63,7 @@ export function buildEditorFromUsuario(
 
 export function buildEditorFromResponsiva(r: Responsiva): EditorData {
   return {
-    empresa: EMPRESA,
+    empresa: 'FERCO Total Look',
     subtitulo: SUBTITULO,
     usuario_id: r.usuario_id,
     nombre: r.nombre,
@@ -99,7 +100,7 @@ export function buildPreviewHtml(d: EditorData): string {
       ).join('')
     : ''
 
-  // Total agrupado por moneda (un equipo puede ser de país distinto)
+  // Total agrupado por moneda del equipo
   const totalesPorPais: Record<string, { simbolo: string; locale: string; total: number }> = {}
   d.equipos.forEach(e => {
     if (!e.precio_compra) return
@@ -112,8 +113,7 @@ export function buildPreviewHtml(d: EditorData): string {
     : Object.values(totalesPorPais)
         .map(({ simbolo, locale, total }) =>
           `${simbolo} ${Number(total).toLocaleString(locale, { minimumFractionDigits: 2 })}`
-        )
-        .join(' + ')
+        ).join(' + ')
 
   return `
     <div style="text-align:center;font-size:12pt;font-weight:700;text-transform:uppercase;
@@ -125,27 +125,27 @@ export function buildPreviewHtml(d: EditorData): string {
     <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid #aaa;margin-bottom:6px">
       <div style="border:.5px solid #ccc;padding:4px 6px">
         <span style="font-size:7pt;color:#555;display:block">Nombre</span>
-        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.nombre || '___________________________'}</span>
+        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.nombre || '_______________'}</span>
       </div>
       <div style="border:.5px solid #ccc;padding:4px 6px">
         <span style="font-size:7pt;color:#555;display:block">Cargo / Puesto</span>
-        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.cargo || '___________________________'}</span>
+        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.cargo || '_______________'}</span>
       </div>
       <div style="border:.5px solid #ccc;padding:4px 6px">
         <span style="font-size:7pt;color:#555;display:block">Departamento</span>
-        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.departamento || '___________________________'}</span>
+        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.departamento || '_______________'}</span>
       </div>
       <div style="border:.5px solid #ccc;padding:4px 6px">
         <span style="font-size:7pt;color:#555;display:block">Centro de Costo</span>
-        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.centro_costo || '___________________________'}</span>
+        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.centro_costo || '_______________'}</span>
       </div>
       <div style="border:.5px solid #ccc;padding:4px 6px">
         <span style="font-size:7pt;color:#555;display:block">País</span>
-        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.pais || '___________________________'}</span>
+        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.pais || '_______________'}</span>
       </div>
       <div style="border:.5px solid #ccc;padding:4px 6px">
         <span style="font-size:7pt;color:#555;display:block">Fecha</span>
-        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.fecha || '___________________________'}</span>
+        <span style="font-size:9.5pt;font-weight:700;display:block;min-height:14px">${d.fecha}</span>
       </div>
       <div style="border:.5px solid #ccc;padding:4px 6px;grid-column:1/-1">
         <span style="font-size:7pt;color:#555;display:block">Tipo de asignación</span>
@@ -186,12 +186,12 @@ export function buildPreviewHtml(d: EditorData): string {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px">
       <div style="text-align:center">
         <div style="border-top:1px solid #000;margin:28px 10px 4px"></div>
-        <div style="font-size:8.5pt;color:#000">${d.entregado_por || '___________________________'}</div>
+        <div style="font-size:8.5pt;color:#000">${d.entregado_por || '_______________'}</div>
         <div style="font-size:7pt;color:#555">Entregado por</div>
       </div>
       <div style="text-align:center">
         <div style="border-top:1px solid #000;margin:28px 10px 4px"></div>
-        <div style="font-size:8.5pt;color:#000">${d.nombre || '___________________________'}</div>
+        <div style="font-size:8.5pt;color:#000">${d.nombre || '_______________'}</div>
         <div style="font-size:7pt;color:#555">Recibido por — Firma y nombre</div>
       </div>
     </div>
@@ -205,47 +205,44 @@ interface Props {
   open: boolean
   onClose: () => void
   data: EditorData
-  editId?: string | null   // si viene de una responsiva guardada
+  editId?: string | null
   onSaved?: () => void
 }
 
 export default function ResponsivaModal({ open, onClose, data: initialData, editId, onSaved }: Props) {
-  const [d, setD] = useState<EditorData>(initialData)
+  const [observaciones, setObservaciones] = useState(initialData.observaciones)
+  const [empresa, setEmpresa] = useState(initialData.empresa)
   const [saving, setSaving] = useState(false)
-  const printRef = useRef<HTMLDivElement>(null)
 
-  // Load nombre_empresa from config on first open
+
   useEffect(() => {
-    getConfig().then(cfg => {
-      setD(prev => ({ ...prev, empresa: cfg.nombre_empresa }))
-    })
-  }, [])
+    setObservaciones(initialData.observaciones)
+    getConfig().then(cfg => setEmpresa(cfg.nombre_empresa))
+  }, [initialData])
 
   if (!open) return null
 
-  function set(patch: Partial<EditorData>) {
-    setD(prev => ({ ...prev, ...patch }))
-  }
+  const d: EditorData = { ...initialData, empresa, observaciones }
 
   function handlePrint() {
-    if (!printRef.current) return
-    printRef.current.innerHTML = buildPreviewHtml(d)
+    const el = document.getElementById('responsiva-print')
+    if (!el) return
+    el.innerHTML = buildPreviewHtml(d)
     window.print()
   }
 
   async function handleSave() {
-    if (!d.nombre.trim()) return
     setSaving(true)
     const payload = {
       usuario_id: d.usuario_id,
-      nombre: d.nombre.trim(),
+      nombre: d.nombre,
       cargo: d.cargo || null,
       departamento: d.departamento || null,
       centro_costo: d.centro_costo || null,
       pais: d.pais || null,
       tipo_asignacion: d.tipo_asignacion,
       entregado_por: d.entregado_por || null,
-      observaciones: d.observaciones || null,
+      observaciones: observaciones || null,
       texto_legal: d.texto_legal || null,
       fecha: d.fecha,
       equipos: d.equipos,
@@ -260,100 +257,81 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
     onClose()
   }
 
-  const inp = 'w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
-  const label = 'block text-xs font-medium text-slate-500 mb-1'
-
   return (
     <>
-      {/* Overlay */}
       <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto">
         <div className="absolute inset-0 bg-black/40" onClick={onClose} />
         <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-5xl my-4 flex flex-col">
+
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
             <div>
               <h2 className="text-base font-semibold text-slate-800">Responsiva de entrega</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{d.nombre} · {d.equipos.length} equipo{d.equipos.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {d.nombre} · {d.equipos.length} equipo{d.equipos.length !== 1 ? 's' : ''}
+              </p>
             </div>
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
           </div>
 
-          {/* Body: form + preview */}
-          <div className="grid grid-cols-[280px_1fr] overflow-hidden" style={{ maxHeight: '76vh' }}>
+          {/* Body */}
+          <div className="grid grid-cols-[260px_1fr] overflow-hidden" style={{ maxHeight: '76vh' }}>
 
-            {/* LEFT: Form */}
-            <div className="overflow-y-auto px-5 py-4 border-r border-slate-100 space-y-3">
+            {/* LEFT: resumen + solo observaciones editable */}
+            <div className="overflow-y-auto px-5 py-4 border-r border-slate-100 space-y-4">
 
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b">Encabezado</p>
+              {/* Datos del responsable — solo lectura */}
               <div>
-                <label className={label}>Empresa</label>
-                <input value={d.empresa} onChange={e => set({ empresa: e.target.value })} className={inp} />
-              </div>
-              <div>
-                <label className={label}>Subtítulo</label>
-                <input value={d.subtitulo} onChange={e => set({ subtitulo: e.target.value })} className={inp} />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b mb-2">Responsable</p>
+                {[
+                  ['Nombre',          d.nombre],
+                  ['Cargo',           d.cargo || '—'],
+                  ['Departamento',    d.departamento || '—'],
+                  ['Centro de Costo', d.centro_costo || '—'],
+                  ['País',            d.pais || '—'],
+                  ['Fecha',           d.fecha],
+                  ['Tipo',            d.tipo_asignacion],
+                  ['Entregado por',   d.entregado_por || '—'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between text-xs py-0.5">
+                    <span className="text-slate-400">{label}</span>
+                    <span className="text-slate-700 font-medium text-right max-w-[150px] truncate">{value}</span>
+                  </div>
+                ))}
               </div>
 
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b pt-2">Responsable</p>
+              {/* Equipos — solo lectura */}
               <div>
-                <label className={label}>Nombre completo</label>
-                <input value={d.nombre} onChange={e => set({ nombre: e.target.value })} className={inp} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={label}>Cargo</label>
-                  <input value={d.cargo} onChange={e => set({ cargo: e.target.value })} className={inp} />
-                </div>
-                <div>
-                  <label className={label}>Departamento</label>
-                  <input value={d.departamento} onChange={e => set({ departamento: e.target.value })} className={inp} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={label}>Centro de Costo</label>
-                  <input value={d.centro_costo} onChange={e => set({ centro_costo: e.target.value })} className={inp} />
-                </div>
-                <div>
-                  <label className={label}>País</label>
-                  <input value={d.pais} onChange={e => set({ pais: e.target.value })} className={inp} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={label}>Fecha</label>
-                  <input type="date" value={d.fecha} onChange={e => set({ fecha: e.target.value })} className={inp} />
-                </div>
-                <div>
-                  <label className={label}>Tipo</label>
-                  <select value={d.tipo_asignacion} onChange={e => set({ tipo_asignacion: e.target.value as TipoAsignacionResponsiva })} className={inp}>
-                    <option>Asignación</option>
-                    <option>Préstamo</option>
-                    <option>Devolución</option>
-                  </select>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b mb-2">
+                  Equipos ({d.equipos.length})
+                </p>
+                <div className="space-y-1">
+                  {d.equipos.map(e => (
+                    <div key={e.id} className="text-xs bg-slate-50 rounded px-2 py-1.5">
+                      <p className="font-medium text-slate-700">{e.marca} {e.modelo}</p>
+                      <p className="text-slate-400 font-mono">{e.correlativo_ferco} · {formatMoneda(e.precio_compra, e.pais)}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b pt-2">Firmas y pie</p>
+              {/* Observaciones — ÚNICO campo editable */}
               <div>
-                <label className={label}>Entregado por</label>
-                <input value={d.entregado_por} onChange={e => set({ entregado_por: e.target.value })} className={inp} placeholder="Nombre de quien entrega" />
-              </div>
-              <div>
-                <label className={label}>Observaciones</label>
-                <textarea value={d.observaciones} onChange={e => set({ observaciones: e.target.value })}
-                  rows={2} className={`${inp} resize-none`} />
-              </div>
-              <div>
-                <label className={label}>Texto legal</label>
-                <textarea value={d.texto_legal} onChange={e => set({ texto_legal: e.target.value })}
-                  rows={4} className={`${inp} resize-none`} />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1 border-b mb-2">Observaciones</p>
+                <textarea
+                  value={observaciones}
+                  onChange={e => setObservaciones(e.target.value)}
+                  rows={5}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  placeholder="Notas, condiciones del equipo, acuerdos especiales..."
+                  autoFocus
+                />
               </div>
             </div>
 
             {/* RIGHT: Live preview */}
             <div className="overflow-y-auto p-5 bg-slate-50">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Vista previa en tiempo real</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Vista previa</p>
               <div
                 className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm"
                 style={{ fontFamily: 'Arial, sans-serif', fontSize: '9pt', color: '#000', lineHeight: 1.4 }}
@@ -375,7 +353,7 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || !d.nombre.trim()}
+              disabled={saving}
               className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
             >
               {saving ? 'Guardando...' : editId ? 'Actualizar' : 'Guardar copia'}
@@ -383,9 +361,7 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
           </div>
         </div>
       </div>
-
-      {/* Hidden print target */}
-      <div ref={printRef} id="responsiva-print" className="hidden" />
+      <div id="responsiva-print" className="hidden" />
     </>
   )
 }

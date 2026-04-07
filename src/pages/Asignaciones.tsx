@@ -2,20 +2,21 @@ import { useEffect, useState } from 'react'
 import { Plus, Search, RotateCcw, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getSession } from '../lib/auth'
 import type { Asignacion, Equipo, Usuario } from '../types'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-const emptyForm = {
+const makeEmptyForm = () => ({
   equipo_id: '',
   usuario_id: '',
   fecha_asignacion: new Date().toISOString().split('T')[0],
   motivo: '',
-  asignado_por: '',
+  asignado_por: getSession()?.nombre ?? '',
   notas: '',
-}
+})
 
 export default function Asignaciones() {
   const navigate = useNavigate()
@@ -28,8 +29,8 @@ export default function Asignaciones() {
   const [modalOpen, setModalOpen] = useState(false)
   const [devolucionId, setDevolucionId] = useState<string | null>(null)
   const [fechaDevolucion, setFechaDevolucion] = useState(new Date().toISOString().split('T')[0])
-  const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(makeEmptyForm)
 
   function handleGenerarResponsiva(a: Asignacion) {
     navigate(`/usuarios/${a.usuario_id}`)
@@ -37,15 +38,18 @@ export default function Asignaciones() {
 
   async function fetchAll() {
     setLoading(true)
-    const [{ data: asig }, { data: eq }, { data: us }] = await Promise.all([
+    const [{ data: asig }, { data: eq }, { data: us }, { data: asigActivas }] = await Promise.all([
       supabase.from('asignaciones')
         .select('*, equipo:equipos(correlativo_ferco, marca, modelo, tipo, numero_serie, precio_compra), usuario:usuarios(nombre, apellido, email, centro_costo, pais, cargo)')
         .order('fecha_asignacion', { ascending: false }),
       supabase.from('equipos').select('id, correlativo_ferco, marca, modelo, tipo, estado').eq('estado', 'Activo').order('correlativo_ferco'),
       supabase.from('usuarios').select('id, nombre, apellido, email, centro_costo, pais').eq('activo', true).order('nombre'),
+      supabase.from('asignaciones').select('equipo_id').is('fecha_devolucion', null),
     ])
     setAsignaciones((asig as Asignacion[]) ?? [])
-    setEquipos((eq as Equipo[]) ?? [])
+    // Only show equipos that are active AND not currently assigned
+    const asignadasIds = new Set((asigActivas ?? []).map((a: any) => a.equipo_id))
+    setEquipos(((eq as Equipo[]) ?? []).filter(e => !asignadasIds.has(e.id)))
     setUsuarios((us as Usuario[]) ?? [])
     setLoading(false)
   }
@@ -79,7 +83,7 @@ export default function Asignaciones() {
     })
     setSaving(false)
     setModalOpen(false)
-    setForm(emptyForm)
+    setForm(makeEmptyForm())
     fetchAll()
   }
 
@@ -100,7 +104,7 @@ export default function Asignaciones() {
           </p>
         </div>
         <button
-          onClick={() => { setForm(emptyForm); setModalOpen(true) }}
+          onClick={() => { setForm(makeEmptyForm()); setModalOpen(true) }}
           className="flex items-center gap-2 bg-primary-500 text-primary-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-600 transition-colors"
         >
           <Plus size={16} /> Nueva Asignación
@@ -249,9 +253,8 @@ export default function Asignaciones() {
             <label className="block text-xs font-medium text-slate-600 mb-1">Asignado por</label>
             <input
               value={form.asignado_por}
-              onChange={e => setForm(f => ({ ...f, asignado_por: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="Tu nombre o email"
+              readOnly
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 cursor-default"
             />
           </div>
           <div>

@@ -1,12 +1,11 @@
 export const PAIS_MONEDA: Record<string, { simbolo: string; locale: string }> = {
-  'Guatemala':   { simbolo: 'Q',    locale: 'es-GT' },
-  'México':      { simbolo: '$',    locale: 'es-MX' },
-  'Honduras':    { simbolo: 'L',    locale: 'es-HN' },
-  'El Salvador': { simbolo: '$',    locale: 'es-SV' },
-  'Nicaragua':   { simbolo: 'C$',   locale: 'es-NI' },
-  'Costa Rica':  { simbolo: '₡',    locale: 'es-CR' },
-  'Panamá':      { simbolo: 'B/.', locale: 'es-PA' },
+  'Guatemala':   { simbolo: 'Q',  locale: 'es-GT' },
+  'El Salvador': { simbolo: '$',  locale: 'es-SV' },
+  'Honduras':    { simbolo: 'L',  locale: 'es-HN' },
+  'México':      { simbolo: '$',  locale: 'es-MX' },
 }
+
+export const PAISES = Object.keys(PAIS_MONEDA)
 
 export function monedaDePais(pais: string | null | undefined): { simbolo: string; locale: string } {
   return PAIS_MONEDA[pais ?? ''] ?? { simbolo: 'Q', locale: 'es-GT' }

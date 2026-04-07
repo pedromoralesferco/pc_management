@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Edit2, Eye, Trash2 } from 'lucide-react'
+import { Plus, Search, Edit2, Eye, Trash2, PowerOff, User, Package } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Equipo, TipoEquipo, EstadoEquipo } from '../types'
-import { PAIS_MONEDA } from '../lib/moneda'
+import { PAIS_MONEDA, PAISES } from '../lib/moneda'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { format } from 'date-fns'
@@ -34,26 +34,50 @@ const emptyForm = {
   notas: '',
 }
 
+type UsuarioAsig = { id: string; nombre: string; apellido: string }
+type EquipoConUsuario = Equipo & { _usuario?: UsuarioAsig }
+
+type Grupo = {
+  tipo: 'libre' | 'usuario'
+  usuario?: UsuarioAsig
+  equipos: EquipoConUsuario[]
+}
+
 export default function Equipos() {
   const navigate = useNavigate()
-  const [equipos, setEquipos] = useState<Equipo[]>([])
+  const [equipos, setEquipos] = useState<EquipoConUsuario[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tipoFilter, setTipoFilter] = useState('')
   const [estadoFilter, setEstadoFilter] = useState('')
+  const [paisFilter, setPaisFilter] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Equipo | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [bajaId, setBajaId] = useState<string | null>(null)
 
   async function fetchEquipos() {
     setLoading(true)
-    const { data } = await supabase
-      .from('equipos')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setEquipos(data ?? [])
+    const [{ data: eq }, { data: asigActivas }] = await Promise.all([
+      supabase.from('equipos').select('*').order('correlativo_ferco'),
+      supabase.from('asignaciones')
+        .select('equipo_id, usuario_id, usuario:usuarios(id, nombre, apellido)')
+        .is('fecha_devolucion', null),
+    ])
+
+    const asigMap: Record<string, UsuarioAsig> = {}
+    ;(asigActivas ?? []).forEach((a: any) => {
+      if (a.usuario) asigMap[a.equipo_id] = a.usuario
+    })
+
+    const merged: EquipoConUsuario[] = (eq ?? []).map((e: Equipo) => ({
+      ...e,
+      _usuario: asigMap[e.id],
+    }))
+
+    setEquipos(merged)
     setLoading(false)
   }
 
@@ -64,8 +88,32 @@ export default function Equipos() {
     const matchSearch = !q || [e.correlativo_ferco, e.marca, e.modelo, e.numero_serie].some(v => v?.toLowerCase().includes(q))
     const matchTipo = !tipoFilter || e.tipo === tipoFilter
     const matchEstado = !estadoFilter || e.estado === estadoFilter
-    return matchSearch && matchTipo && matchEstado
+    const matchPais = !paisFilter || e.pais === paisFilter
+    return matchSearch && matchTipo && matchEstado && matchPais
   })
+
+  // Build groups: "Sin asignación" first, then one group per user
+  const grupos: Grupo[] = (() => {
+    const libres: EquipoConUsuario[] = []
+    const porUsuario: Record<string, { usuario: UsuarioAsig; equipos: EquipoConUsuario[] }> = {}
+
+    filtered.forEach(e => {
+      if (!e._usuario) {
+        libres.push(e)
+      } else {
+        const uid = e._usuario.id
+        if (!porUsuario[uid]) porUsuario[uid] = { usuario: e._usuario, equipos: [] }
+        porUsuario[uid].equipos.push(e)
+      }
+    })
+
+    const result: Grupo[] = []
+    if (libres.length > 0) result.push({ tipo: 'libre', equipos: libres })
+    Object.values(porUsuario)
+      .sort((a, b) => a.usuario.nombre.localeCompare(b.usuario.nombre))
+      .forEach(g => result.push({ tipo: 'usuario', usuario: g.usuario, equipos: g.equipos }))
+    return result
+  })()
 
   function openCreate() {
     setEditTarget(null)
@@ -122,6 +170,66 @@ export default function Equipos() {
     fetchEquipos()
   }
 
+  async function handleDarDeBaja(id: string) {
+    await supabase.from('equipos').update({ estado: 'Dado de baja' }).eq('id', id)
+    setBajaId(null)
+    fetchEquipos()
+  }
+
+  function EquipoRow({ e }: { e: EquipoConUsuario }) {
+    return (
+      <div className="px-4 py-3 flex items-center gap-3 text-sm hover:bg-slate-50 transition-colors">
+        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+          <Package size={14} className="text-slate-500" />
+        </div>
+        <div className="font-mono text-primary-700 font-medium w-28 flex-shrink-0">{e.correlativo_ferco}</div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-slate-800 truncate">{e.marca} {e.modelo}</p>
+          <p className="text-xs text-slate-400">{e.tipo} · {e.numero_serie}</p>
+        </div>
+        <div className="hidden md:block text-slate-500 text-xs w-20">{e.pais ?? '—'}</div>
+        <div className="w-28 flex-shrink-0">
+          <Badge label={e.estado} variant={estadoVariant[e.estado]} />
+        </div>
+        <div className="hidden md:block text-slate-400 text-xs w-20">
+          {e.fecha_compra ? format(new Date(e.fecha_compra), 'dd/MM/yyyy') : '—'}
+        </div>
+        <div className="flex items-center gap-1 justify-end flex-shrink-0">
+          <button
+            onClick={() => navigate(`/equipos/${e.id}`)}
+            className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors"
+            title="Ver detalle"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            onClick={() => openEdit(e)}
+            className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors"
+            title="Editar"
+          >
+            <Edit2 size={14} />
+          </button>
+          {e.estado !== 'Dado de baja' && (
+            <button
+              onClick={() => setBajaId(e.id)}
+              className="p-1.5 text-slate-400 hover:text-amber-600 transition-colors"
+              title="Dar de baja"
+            >
+              <PowerOff size={14} />
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteId(e.id)}
+            className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+            title="Eliminar"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -164,79 +272,67 @@ export default function Equipos() {
           <option value="">Todos los estados</option>
           {ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <select
+          value={paisFilter}
+          onChange={e => setPaisFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">Todos los países</option>
+          {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-6 h-6 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Correlativo</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Tipo</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Marca / Modelo</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">No. Serie</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Estado</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">F. Compra</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-10 text-slate-400">No se encontraron equipos</td></tr>
+      {/* Grupos */}
+      {loading ? (
+        <div className="flex items-center justify-center h-40">
+          <div className="w-6 h-6 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : grupos.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400 text-sm">
+          No se encontraron equipos
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {grupos.map((grupo, gi) => (
+            <div key={gi} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              {/* Group header */}
+              <div className={`flex items-center gap-2 px-4 py-3 border-b border-slate-100 ${
+                grupo.tipo === 'libre' ? 'bg-slate-50' : 'bg-primary-50/50'
+              }`}>
+                {grupo.tipo === 'libre' ? (
+                  <Package size={15} className="text-slate-500" />
+                ) : (
+                  <User size={15} className="text-primary-600" />
                 )}
-                {filtered.map(e => (
-                  <tr key={e.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono font-medium text-primary-700">{e.correlativo_ferco}</td>
-                    <td className="px-4 py-3 text-slate-600">{e.tipo}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-800">{e.marca}</p>
-                      <p className="text-slate-400 text-xs">{e.modelo}</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-600">{e.numero_serie}</td>
-                    <td className="px-4 py-3">
-                      <Badge label={e.estado} variant={estadoVariant[e.estado]} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {e.fecha_compra ? format(new Date(e.fecha_compra), 'dd/MM/yyyy') : '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 justify-end">
-                        <button
-                          onClick={() => navigate(`/equipos/${e.id}`)}
-                          className="text-slate-400 hover:text-primary-600 transition-colors"
-                          title="Ver detalle"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => openEdit(e)}
-                          className="text-slate-400 hover:text-primary-600 transition-colors"
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(e.id)}
-                          className="text-slate-400 hover:text-red-600 transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                <span className={`font-semibold text-sm ${
+                  grupo.tipo === 'libre' ? 'text-slate-600' : 'text-primary-700'
+                }`}>
+                  {grupo.tipo === 'libre'
+                    ? 'Sin Asignación'
+                    : `${grupo.usuario!.nombre} ${grupo.usuario!.apellido}`}
+                </span>
+                <span className="text-xs text-slate-400 font-normal ml-1">
+                  ({grupo.equipos.length} equipo{grupo.equipos.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+              {/* Column headers */}
+              <div className="px-4 py-2 flex items-center gap-3 text-xs font-medium text-slate-400 border-b border-slate-100 bg-white">
+                <div className="w-8 flex-shrink-0" />
+                <div className="w-28 flex-shrink-0">Correlativo</div>
+                <div className="flex-1">Equipo</div>
+                <div className="hidden md:block w-20">País</div>
+                <div className="w-28 flex-shrink-0">Estado</div>
+                <div className="hidden md:block w-20">F. Compra</div>
+                <div className="w-24 flex-shrink-0" />
+              </div>
+              {/* Rows */}
+              <div className="divide-y divide-slate-100">
+                {grupo.equipos.map(e => <EquipoRow key={e.id} e={e} />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal crear/editar */}
       <Modal
@@ -387,6 +483,22 @@ export default function Equipos() {
             className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
           >
             {saving ? 'Guardando...' : editTarget ? 'Actualizar' : 'Crear Equipo'}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal dar de baja */}
+      <Modal open={!!bajaId} onClose={() => setBajaId(null)} title="Dar de baja equipo" size="sm">
+        <p className="text-sm text-slate-600">El equipo pasará al estado <span className="font-medium text-amber-700">Dado de baja</span>. Puedes revertirlo desde editar.</p>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={() => setBajaId(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
+            Cancelar
+          </button>
+          <button
+            onClick={() => bajaId && handleDarDeBaja(bajaId)}
+            className="px-4 py-2 text-sm bg-amber-500 text-white font-bold rounded-lg hover:bg-amber-600"
+          >
+            Dar de baja
           </button>
         </div>
       </Modal>
