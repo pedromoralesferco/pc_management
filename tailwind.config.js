@@ -8,14 +8,14 @@ export default {
     extend: {
       colors: {
         primary: {
-          50:  '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50:  '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          500: '#f2c12a',  // FERCO yellow
+          600: '#d4a500',  // hover
+          700: '#b08f00',  // active/ring
+          800: '#1a1a1a',  // FERCO black
+          900: '#111111',
         },
       },
     },

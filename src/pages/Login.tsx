@@ -25,24 +25,22 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-primary-800 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-primary-600 rounded-2xl mb-4">
-            <Monitor size={28} className="text-white" />
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-primary-500 rounded-2xl mb-4">
+            <Monitor size={28} className="text-primary-800" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">FERCO Equipos</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestión de activos de cómputo</p>
+          <h1 className="text-3xl font-bold text-white tracking-widest">FERCO</h1>
+          <p className="text-primary-500 text-sm mt-1 font-medium">Gestión de Equipos</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Usuario
-              </label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Usuario</label>
               <input
                 type="text"
                 value={user}
@@ -55,9 +53,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Contraseña
-              </label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Contraseña</label>
               <div className="relative">
                 <input
                   type={showPass ? 'text' : 'password'}
@@ -86,14 +82,14 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading || !user || !password}
-              className="w-full bg-primary-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors mt-2"
+              className="w-full bg-primary-500 text-primary-800 font-bold py-2.5 rounded-lg text-sm hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-2"
             >
               {loading ? 'Verificando...' : 'Ingresar'}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs text-white/30 mt-6">
           FERCO Total Look · Sistema interno
         </p>
       </div>

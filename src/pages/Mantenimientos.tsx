@@ -133,7 +133,7 @@ export default function Mantenimientos() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+          className="flex items-center gap-2 bg-primary-500 text-primary-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-600 transition-colors"
         >
           <Plus size={16} /> Nuevo Mantenimiento
         </button>
@@ -326,7 +326,7 @@ export default function Mantenimientos() {
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60">
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60">
             {saving ? 'Guardando...' : editTarget ? 'Actualizar' : 'Registrar Mantenimiento'}
           </button>
         </div>

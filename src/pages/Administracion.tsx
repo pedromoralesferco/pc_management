@@ -117,7 +117,7 @@ export default function Administracion() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+          className="flex items-center gap-2 bg-primary-500 text-primary-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-600 transition-colors"
         >
           <Plus size={16} /> Nuevo Usuario
         </button>
@@ -267,7 +267,7 @@ export default function Administracion() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60"
+            className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
           >
             {saving ? 'Guardando...' : editTarget ? 'Actualizar' : 'Crear Usuario'}
           </button>
@@ -296,7 +296,7 @@ export default function Administracion() {
           <button
             onClick={handleChangePass}
             disabled={savingPass || !newPass}
-            className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60"
+            className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
           >
             {savingPass ? 'Guardando...' : 'Cambiar'}
           </button>

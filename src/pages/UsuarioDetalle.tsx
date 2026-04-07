@@ -33,8 +33,9 @@ export default function UsuarioDetalle() {
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" /></div>
   if (!usuario) return <p className="text-slate-500">Usuario no encontrado.</p>
 
-  const asignacionActual = asignaciones.find(a => !a.fecha_devolucion)
+  const asignacionesActivas = asignaciones.filter(a => !a.fecha_devolucion)
   const totalEquipos = new Set(asignaciones.map(a => a.equipo_id)).size
+  const historial = asignaciones.filter(a => a.fecha_devolucion)
 
   return (
     <div className="space-y-6">
@@ -71,7 +72,7 @@ export default function UsuarioDetalle() {
         </div>
       </div>
 
-      {/* Stats rápidos */}
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
           <p className="text-2xl font-bold text-primary-600">{asignaciones.length}</p>
@@ -82,44 +83,68 @@ export default function UsuarioDetalle() {
           <p className="text-xs text-slate-500 mt-1">Equipos distintos</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-          <p className="text-2xl font-bold text-purple-600">{asignacionActual ? 1 : 0}</p>
-          <p className="text-xs text-slate-500 mt-1">Equipo actual</p>
+          <p className="text-2xl font-bold text-purple-600">{asignacionesActivas.length}</p>
+          <p className="text-xs text-slate-500 mt-1">Equipos activos</p>
         </div>
       </div>
 
-      {/* Equipo actual */}
-      {asignacionActual && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Monitor size={16} className="text-slate-500" />
-            <h2 className="font-semibold text-slate-800">Equipo Asignado Actualmente</h2>
-          </div>
-          <div className="text-sm">
-            <p className="font-medium text-slate-800 text-base">{asignacionActual.equipo?.marca} {asignacionActual.equipo?.modelo}</p>
-            <p className="text-slate-400 font-mono">{asignacionActual.equipo?.correlativo_ferco}</p>
-            <p className="text-slate-400 mt-1">Desde: {format(new Date(asignacionActual.fecha_asignacion), 'dd MMM yyyy', { locale: es })}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Historial */}
+      {/* Equipos activos actualmente */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-800">Historial de Equipos ({asignaciones.length})</h2>
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+          <Monitor size={16} className="text-slate-500" />
+          <h2 className="font-semibold text-slate-800">
+            Equipos Asignados Actualmente
+            <span className="ml-2 text-sm font-normal text-slate-400">({asignacionesActivas.length})</span>
+          </h2>
         </div>
         <div className="divide-y divide-slate-100">
-          {asignaciones.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Sin historial de asignaciones</p>}
-          {asignaciones.map(a => (
+          {asignacionesActivas.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-6">Sin equipos asignados actualmente</p>
+          )}
+          {asignacionesActivas.map(a => (
+            <div key={a.id} className="px-5 py-4 flex items-center justify-between text-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <Monitor size={16} className="text-green-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800">{a.equipo?.marca} {a.equipo?.modelo}</p>
+                  <p className="text-slate-400 text-xs font-mono">{a.equipo?.correlativo_ferco} · {a.equipo?.tipo}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge label="Activo" variant="success" />
+                <p className="text-xs text-slate-400 mt-1">
+                  Desde {format(new Date(a.fecha_asignacion), 'dd MMM yyyy', { locale: es })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Historial (devueltos) */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-800">
+            Historial de Devoluciones
+            <span className="ml-2 text-sm font-normal text-slate-400">({historial.length})</span>
+          </h2>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {historial.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-6">Sin devoluciones registradas</p>
+          )}
+          {historial.map(a => (
             <div key={a.id} className="px-5 py-3 flex items-center justify-between text-sm">
               <div>
                 <p className="font-medium text-slate-700">{a.equipo?.marca} {a.equipo?.modelo}</p>
                 <p className="text-slate-400 text-xs font-mono">{a.equipo?.correlativo_ferco} · {a.equipo?.tipo}</p>
               </div>
               <div className="text-right">
-                <Badge label={a.fecha_devolucion ? 'Devuelto' : 'Activo'} variant={a.fecha_devolucion ? 'default' : 'success'} />
+                <Badge label="Devuelto" variant="default" />
                 <p className="text-xs text-slate-400 mt-1">
-                  {format(new Date(a.fecha_asignacion), 'dd/MM/yyyy')}
-                  {a.fecha_devolucion && ` → ${format(new Date(a.fecha_devolucion), 'dd/MM/yyyy')}`}
+                  {format(new Date(a.fecha_asignacion), 'dd/MM/yyyy')} → {format(new Date(a.fecha_devolucion!), 'dd/MM/yyyy')}
                 </p>
               </div>
             </div>
