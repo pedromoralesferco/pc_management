@@ -5,6 +5,7 @@ import {
   Users,
   ClipboardList,
   Wrench,
+  FileText,
   Menu,
   X,
   LogOut,
@@ -19,6 +20,7 @@ const mainLinks = [
   { to: '/usuarios',       icon: Users,           label: 'Usuarios' },
   { to: '/asignaciones',   icon: ClipboardList,   label: 'Asignaciones' },
   { to: '/mantenimientos', icon: Wrench,          label: 'Mantenimientos' },
+  { to: '/responsivas',    icon: FileText,        label: 'Responsivas' },
 ]
 
 export default function Sidebar() {

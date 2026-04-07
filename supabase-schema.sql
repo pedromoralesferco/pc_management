@@ -117,3 +117,29 @@ CREATE POLICY "allow_all_equipos"        ON equipos        FOR ALL USING (true) 
 CREATE POLICY "allow_all_usuarios"       ON usuarios       FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_asignaciones"   ON asignaciones   FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "allow_all_mantenimientos" ON mantenimientos FOR ALL USING (true) WITH CHECK (true);
+
+-- ========================
+-- TABLA: responsivas
+-- ========================
+CREATE TABLE responsivas (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id      UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  nombre          TEXT NOT NULL,
+  cargo           TEXT,
+  departamento    TEXT,
+  centro_costo    TEXT,
+  pais            TEXT,
+  tipo_asignacion TEXT NOT NULL DEFAULT 'Asignación'
+                    CHECK (tipo_asignacion IN ('Asignación', 'Préstamo', 'Devolución')),
+  entregado_por   TEXT,
+  observaciones   TEXT,
+  texto_legal     TEXT,
+  fecha           DATE NOT NULL DEFAULT CURRENT_DATE,
+  equipos         JSONB NOT NULL DEFAULT '[]',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_responsivas_usuario ON responsivas(usuario_id);
+
+ALTER TABLE responsivas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all_responsivas" ON responsivas FOR ALL USING (true) WITH CHECK (true);

@@ -67,3 +67,34 @@ export interface Mantenimiento {
   // joins
   equipo?: Equipo
 }
+
+export type TipoAsignacionResponsiva = 'Asignación' | 'Préstamo' | 'Devolución'
+
+export interface EquipoResponsiva {
+  id: string
+  correlativo_ferco: string
+  marca: string
+  modelo: string
+  numero_serie: string
+  tipo: string
+  precio_compra: number | null
+}
+
+export interface Responsiva {
+  id: string
+  usuario_id: string | null
+  nombre: string
+  cargo: string | null
+  departamento: string | null
+  centro_costo: string | null
+  pais: string | null
+  tipo_asignacion: TipoAsignacionResponsiva
+  entregado_por: string | null
+  observaciones: string | null
+  texto_legal: string | null
+  fecha: string
+  equipos: EquipoResponsiva[]
+  created_at: string
+  // join
+  usuario?: Usuario
+}

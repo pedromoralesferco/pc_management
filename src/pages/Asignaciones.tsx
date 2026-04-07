@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, RotateCcw } from 'lucide-react'
+import { Plus, Search, RotateCcw, FileText } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Asignacion, Equipo, Usuario } from '../types'
 import Badge from '../components/Badge'
@@ -17,6 +18,7 @@ const emptyForm = {
 }
 
 export default function Asignaciones() {
+  const navigate = useNavigate()
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
@@ -29,11 +31,15 @@ export default function Asignaciones() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
 
+  function handleGenerarResponsiva(a: Asignacion) {
+    navigate(`/usuarios/${a.usuario_id}`)
+  }
+
   async function fetchAll() {
     setLoading(true)
     const [{ data: asig }, { data: eq }, { data: us }] = await Promise.all([
       supabase.from('asignaciones')
-        .select('*, equipo:equipos(correlativo_ferco, marca, modelo, tipo), usuario:usuarios(nombre, apellido, email, centro_costo, pais)')
+        .select('*, equipo:equipos(correlativo_ferco, marca, modelo, tipo, numero_serie, precio_compra), usuario:usuarios(nombre, apellido, email, centro_costo, pais, cargo)')
         .order('fecha_asignacion', { ascending: false }),
       supabase.from('equipos').select('id, correlativo_ferco, marca, modelo, tipo, estado').eq('estado', 'Activo').order('correlativo_ferco'),
       supabase.from('usuarios').select('id, nombre, apellido, email, centro_costo, pais').eq('activo', true).order('nombre'),
@@ -163,15 +169,26 @@ export default function Asignaciones() {
                       <Badge label={a.fecha_devolucion ? 'Devuelto' : 'Activo'} variant={a.fecha_devolucion ? 'default' : 'success'} />
                     </td>
                     <td className="px-4 py-3">
-                      {!a.fecha_devolucion && (
-                        <button
-                          onClick={() => { setDevolucionId(a.id); setFechaDevolucion(new Date().toISOString().split('T')[0]) }}
-                          className="flex items-center gap-1 text-xs text-slate-400 hover:text-primary-600 transition-colors"
-                          title="Registrar devolución"
-                        >
-                          <RotateCcw size={14} /> Devolver
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {!a.fecha_devolucion && (
+                          <>
+                            <button
+                              onClick={() => { setDevolucionId(a.id); setFechaDevolucion(new Date().toISOString().split('T')[0]) }}
+                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-primary-600 transition-colors"
+                              title="Registrar devolución"
+                            >
+                              <RotateCcw size={14} /> Devolver
+                            </button>
+                            <button
+                              onClick={() => handleGenerarResponsiva(a)}
+                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-green-600 transition-colors"
+                              title="Generar responsiva"
+                            >
+                              <FileText size={14} /> Responsiva
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

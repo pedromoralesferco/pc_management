@@ -11,6 +11,7 @@ import UsuarioDetalle from './pages/UsuarioDetalle'
 import Asignaciones from './pages/Asignaciones'
 import Mantenimientos from './pages/Mantenimientos'
 import Administracion from './pages/Administracion'
+import Responsivas from './pages/Responsivas'
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             <Route path="/usuarios/:id" element={<UsuarioDetalle />} />
             <Route path="/asignaciones" element={<Asignaciones />} />
             <Route path="/mantenimientos" element={<Mantenimientos />} />
+            <Route path="/responsivas" element={<Responsivas />} />
             {/* Rutas solo para admin */}
             <Route element={<AdminRoute />}>
               <Route path="/administracion" element={<Administracion />} />
