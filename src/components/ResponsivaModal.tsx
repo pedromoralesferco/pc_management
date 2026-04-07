@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Printer, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { monedaDePais, formatMoneda } from '../lib/moneda'
+import { getConfig } from '../lib/config'
 import type { Usuario, Asignacion, TipoAsignacionResponsiva, EquipoResponsiva, Responsiva } from '../types'
 
 const EMPRESA = 'FERCO Total Look'
@@ -53,6 +54,7 @@ export function buildEditorFromUsuario(
         modelo: a.equipo!.modelo,
         numero_serie: (a.equipo as any).numero_serie ?? '',
         tipo: a.equipo!.tipo,
+        pais: (a.equipo as any).pais ?? null,
         precio_compra: (a.equipo as any).precio_compra ?? null,
       })),
   }
@@ -78,7 +80,6 @@ export function buildEditorFromResponsiva(r: Responsiva): EditorData {
 }
 
 export function buildPreviewHtml(d: EditorData): string {
-  const { simbolo } = monedaDePais(d.pais)
   const legal = d.texto_legal.replace(/\{nombre\}/g, d.nombre || '_______________')
 
   const filas = d.equipos.map(e => `
@@ -89,7 +90,7 @@ export function buildPreviewHtml(d: EditorData): string {
       <td style="border:.5px solid #ccc;padding:4px 6px;font-family:monospace;font-size:7.5pt">${e.numero_serie || '—'}</td>
       <td style="border:.5px solid #ccc;padding:4px 6px;font-family:monospace;font-size:7.5pt">${e.correlativo_ferco || '—'}</td>
       <td style="border:.5px solid #ccc;padding:4px 6px;font-size:8.5pt">${e.tipo || '—'}</td>
-      <td style="border:.5px solid #ccc;padding:4px 6px;text-align:right;font-size:8.5pt">${formatMoneda(e.precio_compra, d.pais)}</td>
+      <td style="border:.5px solid #ccc;padding:4px 6px;text-align:right;font-size:8.5pt">${formatMoneda(e.precio_compra, e.pais)}</td>
     </tr>`).join('')
 
   const filasPad = d.equipos.length < 3
@@ -98,10 +99,21 @@ export function buildPreviewHtml(d: EditorData): string {
       ).join('')
     : ''
 
-  const total = d.equipos.reduce((s, e) => s + (Number(e.precio_compra) || 0), 0)
-  const totalFmt = total
-    ? `${simbolo} ${Number(total).toLocaleString(monedaDePais(d.pais).locale, { minimumFractionDigits: 2 })}`
-    : '—'
+  // Total agrupado por moneda (un equipo puede ser de país distinto)
+  const totalesPorPais: Record<string, { simbolo: string; locale: string; total: number }> = {}
+  d.equipos.forEach(e => {
+    if (!e.precio_compra) return
+    const key = e.pais ?? 'Guatemala'
+    if (!totalesPorPais[key]) totalesPorPais[key] = { ...monedaDePais(e.pais), total: 0 }
+    totalesPorPais[key].total += Number(e.precio_compra)
+  })
+  const totalFmt = Object.keys(totalesPorPais).length === 0
+    ? '—'
+    : Object.values(totalesPorPais)
+        .map(({ simbolo, locale, total }) =>
+          `${simbolo} ${Number(total).toLocaleString(locale, { minimumFractionDigits: 2 })}`
+        )
+        .join(' + ')
 
   return `
     <div style="text-align:center;font-size:12pt;font-weight:700;text-transform:uppercase;
@@ -202,10 +214,13 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
   const [saving, setSaving] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
 
-  // Reset when modal opens with new data
-  useState(() => { setD(initialData) })
+  // Load nombre_empresa from config on first open
+  useEffect(() => {
+    getConfig().then(cfg => {
+      setD(prev => ({ ...prev, empresa: cfg.nombre_empresa }))
+    })
+  }, [])
 
-  // Keep in sync when initialData changes (new user opened)
   if (!open) return null
 
   function set(patch: Partial<EditorData>) {

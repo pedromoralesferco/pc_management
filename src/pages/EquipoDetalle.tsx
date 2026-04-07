@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Wrench, Calendar } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Equipo, Asignacion, Mantenimiento } from '../types'
+import { formatMoneda } from '../lib/moneda'
 import Badge from '../components/Badge'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -75,8 +76,9 @@ export default function EquipoDetalle() {
             ['Número de Serie', equipo.numero_serie],
             ['Marca', equipo.marca],
             ['Modelo', equipo.modelo],
+            ['País de compra', equipo.pais ?? '—'],
             ['Proveedor', equipo.proveedor ?? '—'],
-            ['Precio de Compra', equipo.precio_compra ? `Q ${equipo.precio_compra.toLocaleString()}` : '—'],
+            ['Precio de Compra', formatMoneda(equipo.precio_compra, equipo.pais)],
             ['Fecha de Compra', equipo.fecha_compra ? format(new Date(equipo.fecha_compra), 'dd MMM yyyy', { locale: es }) : '—'],
             ['Garantía hasta', equipo.garantia_hasta ? format(new Date(equipo.garantia_hasta), 'dd MMM yyyy', { locale: es }) : '—'],
             ['Registrado', format(new Date(equipo.created_at), 'dd MMM yyyy', { locale: es })],

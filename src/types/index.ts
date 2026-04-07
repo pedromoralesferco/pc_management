@@ -12,6 +12,7 @@ export interface Equipo {
   numero_serie: string
   descripcion: string | null
   estado: EstadoEquipo
+  pais: string | null
   fecha_compra: string | null
   garantia_hasta: string | null
   proveedor: string | null
@@ -77,6 +78,7 @@ export interface EquipoResponsiva {
   modelo: string
   numero_serie: string
   tipo: string
+  pais: string | null
   precio_compra: number | null
 }
 

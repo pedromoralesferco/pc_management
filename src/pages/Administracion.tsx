@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Plus, Edit2, UserCheck, UserX, KeyRound } from 'lucide-react'
+import { Plus, Edit2, UserCheck, UserX, KeyRound, Settings } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getSession } from '../lib/auth'
+import { invalidateConfig } from '../lib/config'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { format } from 'date-fns'
@@ -34,6 +35,11 @@ export default function Administracion() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Configuración general
+  const [configNombre, setConfigNombre] = useState('FERCO Total Look')
+  const [savingConfig, setSavingConfig] = useState(false)
+  const [configSaved, setConfigSaved] = useState(false)
+
   // Modal cambiar contraseña
   const [passModal, setPassModal] = useState(false)
   const [passTarget, setPassTarget] = useState<AppUser | null>(null)
@@ -50,7 +56,11 @@ export default function Administracion() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => {
+    fetchUsers()
+    supabase.from('configuracion').select('nombre_empresa').single()
+      .then(({ data }) => { if (data) setConfigNombre(data.nombre_empresa) })
+  }, [])
 
   function openCreate() {
     setEditTarget(null)
@@ -97,6 +107,16 @@ export default function Administracion() {
     if (u.id === session?.id) return // no puede desactivarse a sí mismo
     await supabase.from('app_users').update({ activo: !u.activo }).eq('id', u.id)
     fetchUsers()
+  }
+
+  async function handleSaveConfig() {
+    if (!configNombre.trim()) return
+    setSavingConfig(true)
+    await supabase.from('configuracion').upsert({ id: 1, nombre_empresa: configNombre.trim() })
+    invalidateConfig()
+    setSavingConfig(false)
+    setConfigSaved(true)
+    setTimeout(() => setConfigSaved(false), 3000)
   }
 
   async function handleChangePass() {
@@ -273,6 +293,40 @@ export default function Administracion() {
           </button>
         </div>
       </Modal>
+
+      {/* Configuración general */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+          <Settings size={16} className="text-slate-500" />
+          <h2 className="font-semibold text-slate-800">Configuración General</h2>
+        </div>
+        <div className="p-6 space-y-4 max-w-md">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Nombre de la empresa
+              <span className="text-slate-400 font-normal ml-1">(aparece en el encabezado de las responsivas)</span>
+            </label>
+            <input
+              value={configNombre}
+              onChange={e => setConfigNombre(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: FERCO Total Look"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSaveConfig}
+              disabled={savingConfig || !configNombre.trim()}
+              className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
+            >
+              {savingConfig ? 'Guardando...' : 'Guardar'}
+            </button>
+            {configSaved && (
+              <span className="text-sm text-green-600 font-medium">✓ Guardado</span>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Modal cambiar contraseña */}
       <Modal open={passModal} onClose={() => setPassModal(false)} title="Cambiar Contraseña" size="sm">

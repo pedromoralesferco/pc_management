@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Search, Edit2, Eye, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Equipo, TipoEquipo, EstadoEquipo } from '../types'
+import { PAIS_MONEDA } from '../lib/moneda'
 import Badge from '../components/Badge'
 import Modal from '../components/Modal'
 import { format } from 'date-fns'
@@ -25,6 +26,7 @@ const emptyForm = {
   numero_serie: '',
   descripcion: '',
   estado: 'Activo' as EstadoEquipo,
+  pais: 'Guatemala',
   fecha_compra: '',
   garantia_hasta: '',
   proveedor: '',
@@ -81,6 +83,7 @@ export default function Equipos() {
       numero_serie: e.numero_serie,
       descripcion: e.descripcion ?? '',
       estado: e.estado,
+      pais: e.pais ?? 'Guatemala',
       fecha_compra: e.fecha_compra ?? '',
       garantia_hasta: e.garantia_hasta ?? '',
       proveedor: e.proveedor ?? '',
@@ -100,6 +103,7 @@ export default function Equipos() {
       garantia_hasta: form.garantia_hasta || null,
       descripcion: form.descripcion || null,
       proveedor: form.proveedor || null,
+      pais: form.pais || null,
       notas: form.notas || null,
     }
     if (editTarget) {
@@ -326,7 +330,21 @@ export default function Equipos() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Precio de Compra (Q)</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">País de compra</label>
+            <select
+              value={form.pais}
+              onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {Object.entries(PAIS_MONEDA).map(([p, { simbolo }]) => (
+                <option key={p} value={p}>{p} ({simbolo})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Precio de Compra ({PAIS_MONEDA[form.pais]?.simbolo ?? 'Q'})
+            </label>
             <input
               type="number"
               value={form.precio_compra}

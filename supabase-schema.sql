@@ -143,3 +143,26 @@ CREATE INDEX idx_responsivas_usuario ON responsivas(usuario_id);
 
 ALTER TABLE responsivas ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_all_responsivas" ON responsivas FOR ALL USING (true) WITH CHECK (true);
+
+-- ========================
+-- CAMPO: equipos.pais
+-- Ejecutar si la tabla ya existe:
+-- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS pais TEXT;
+-- ========================
+-- (ya incluido en el CREATE TABLE de arriba si se corre desde cero)
+
+-- ========================
+-- TABLA: configuracion
+-- ========================
+CREATE TABLE configuracion (
+  id             INTEGER PRIMARY KEY DEFAULT 1,
+  nombre_empresa TEXT NOT NULL DEFAULT 'FERCO Total Look',
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO configuracion (id, nombre_empresa)
+VALUES (1, 'FERCO Total Look')
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all_configuracion" ON configuracion FOR ALL USING (true) WITH CHECK (true);

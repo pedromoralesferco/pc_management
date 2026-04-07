@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Monitor, FileText } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { formatMoneda } from '../lib/moneda'
+import { formatMoneda, monedaDePais } from '../lib/moneda'
 import type { Usuario, Asignacion } from '../types'
 import Badge from '../components/Badge'
 import ResponsivaModal, { buildEditorFromUsuario } from '../components/ResponsivaModal'
@@ -43,9 +43,26 @@ export default function UsuarioDetalle() {
   const asignacionesActivas = asignaciones.filter(a => !a.fecha_devolucion)
   const historial = asignaciones.filter(a => a.fecha_devolucion)
   const totalEquipos = new Set(asignaciones.map(a => a.equipo_id)).size
-  const totalValor = asignacionesActivas.reduce(
-    (s, a) => s + (Number((a.equipo as any)?.precio_compra) || 0), 0
-  )
+  // Totales agrupados por moneda del equipo
+  const totalesPorPais: Record<string, { simbolo: string; locale: string; total: number }> = {}
+  asignacionesActivas.forEach(a => {
+    const precio = Number((a.equipo as any)?.precio_compra) || 0
+    if (!precio) return
+    const pais = (a.equipo as any)?.pais ?? null
+    const key = pais ?? '__sin_pais__'
+    if (!totalesPorPais[key]) {
+      const { simbolo, locale } = monedaDePais(pais)
+      totalesPorPais[key] = { simbolo, locale, total: 0 }
+    }
+    totalesPorPais[key].total += precio
+  })
+  const totalValorFmt = Object.keys(totalesPorPais).length === 0
+    ? null
+    : Object.values(totalesPorPais)
+        .map(({ simbolo, locale, total }) =>
+          `${simbolo} ${Number(total).toLocaleString(locale, { minimumFractionDigits: 2 })}`
+        )
+        .join(' + ')
 
   return (
     <div className="space-y-6">
@@ -106,7 +123,7 @@ export default function UsuarioDetalle() {
           <p className="text-xs text-slate-500 mt-1">Equipos activos</p>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-          <p className="text-xl font-bold text-slate-700">{formatMoneda(totalValor, usuario.pais)}</p>
+          <p className="text-lg font-bold text-slate-700 leading-tight">{totalValorFmt ?? '—'}</p>
           <p className="text-xs text-slate-500 mt-1">Valor asignado</p>
         </div>
       </div>
@@ -121,9 +138,9 @@ export default function UsuarioDetalle() {
               <span className="ml-2 text-sm font-normal text-slate-400">({asignacionesActivas.length})</span>
             </h2>
           </div>
-          {totalValor > 0 && (
+          {totalValorFmt && (
             <span className="text-sm font-semibold text-slate-600">
-              Total: {formatMoneda(totalValor, usuario.pais)}
+              Total: {totalValorFmt}
             </span>
           )}
         </div>
