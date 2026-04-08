@@ -139,6 +139,7 @@ CREATE TABLE responsivas (
   texto_legal     TEXT,
   fecha           DATE NOT NULL DEFAULT CURRENT_DATE,
   equipos         JSONB NOT NULL DEFAULT '[]',
+  firmada         BOOLEAN NOT NULL DEFAULT false,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -160,6 +161,12 @@ CREATE POLICY "allow_all_responsivas" ON responsivas FOR ALL USING (true) WITH C
 -- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS procesador TEXT;
 -- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS ram TEXT;
 -- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS almacenamiento TEXT;
+-- ========================
+
+-- ========================
+-- CAMPO: responsivas.firmada
+-- Ejecutar en Supabase SQL Editor si la tabla ya existe:
+-- ALTER TABLE responsivas ADD COLUMN IF NOT EXISTS firmada BOOLEAN NOT NULL DEFAULT false;
 -- ========================
 
 -- ========================

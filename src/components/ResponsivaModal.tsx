@@ -8,7 +8,23 @@ import type { Usuario, Asignacion, TipoAsignacionResponsiva, EquipoResponsiva, R
 
 const SUBTITULO = 'Responsiva de Entrega de Equipos'
 const TEXTO_LEGAL =
-  'Yo, {nombre}, certifico que asumo la responsabilidad de cualquier daño que pueda causar al equipo asignado. Me comprometo a garantizar su integridad, o a reemplazarlo o reembolsar el costo de reemplazo en caso de pérdida o daño irreparable por negligencia. Es mi responsabilidad notificar a soporte técnico cualquier desgaste, avería o necesidad de mantenimiento.'
+  'Yo, <strong>{nombre}</strong>, habiendo recibido los equipos descritos en este documento, declaro conocer y aceptar las siguientes condiciones de uso:' +
+  '<br><br><strong>Me comprometo a:</strong>' +
+  '<ul style="margin:4px 0 6px 16px;padding:0;line-height:1.7">' +
+  '<li>Utilizar el equipo exclusivamente para actividades laborales.</li>' +
+  '<li>Protegerlo de líquidos, golpes, temperaturas extremas y cualquier condición que ponga en riesgo su integridad física.</li>' +
+  '<li>Respaldar regularmente mi información crítica en la nube corporativa (OneDrive / Google Drive).</li>' +
+  '<li>Notificar de inmediato a soporte técnico cualquier falla, desgaste, avería o necesidad de mantenimiento, así como cualquier caso de pérdida o robo.</li>' +
+  '<li>Cerrar sesión y apagar el equipo al finalizar cada jornada laboral.</li>' +
+  '</ul>' +
+  '<strong>Me abstendré de:</strong>' +
+  '<ul style="margin:4px 0 6px 16px;padding:0;line-height:1.7">' +
+  '<li>Prestar el equipo a terceros, incluyendo familiares, o permitir su uso para fines personales.</li>' +
+  '<li>Instalar software no autorizado, conectar dispositivos USB de origen desconocido o almacenar información personal.</li>' +
+  '<li>Realizar modificaciones de hardware ni desactivar herramientas de seguridad (antivirus, firewall).</li>' +
+  '<li>Colocar stickers o adhesivos distintos a las etiquetas oficiales de inventario de TI.</li>' +
+  '</ul>' +
+  '<strong>Responsabilidad por daños:</strong> En caso de daño comprobado por mal uso o negligencia, acepto responder por el costo de reparación o reemplazo del equipo conforme a los criterios establecidos en la Política de Renovación de Equipos de TI. Dicho reintegro se gestionará de mutuo acuerdo entre las partes o, en su defecto, mediante los mecanismos legales aplicables según la legislación laboral vigente en el país donde presto mis servicios, respetando en todo momento los límites y procedimientos que dicha legislación establezca para la protección del salario.'
 
 export type EditorData = {
   empresa: string

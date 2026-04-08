@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Printer, Pencil, Trash2, FileText } from 'lucide-react'
+import { Search, Printer, Pencil, Trash2, FileText, CheckCircle2, Circle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Responsiva } from '../types'
 import Badge from '../components/Badge'
@@ -43,6 +43,11 @@ export default function Responsivas() {
     await supabase.from('responsivas').delete().eq('id', delId)
     setDelId(null)
     fetchAll()
+  }
+
+  async function toggleFirmada(r: Responsiva) {
+    await supabase.from('responsivas').update({ firmada: !r.firmada }).eq('id', r.id)
+    setResponsivas(prev => prev.map(x => x.id === r.id ? { ...x, firmada: !r.firmada } : x))
   }
 
   const filtered = responsivas.filter(r => {
@@ -95,13 +100,14 @@ export default function Responsivas() {
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Equipos</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Fecha</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Tipo</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Firmada</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <td colSpan={9} className="text-center py-12 text-slate-400">
                       <FileText size={32} className="mx-auto mb-2 opacity-30" />
                       <p>No hay responsivas guardadas.</p>
                       <p className="text-xs mt-1">Generálas desde el detalle de cada usuario.</p>
@@ -128,6 +134,22 @@ export default function Responsivas() {
                         label={r.tipo_asignacion}
                         variant={r.tipo_asignacion === 'Devolución' ? 'default' : r.tipo_asignacion === 'Préstamo' ? 'warning' : 'success'}
                       />
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => toggleFirmada(r)}
+                        title={r.firmada ? 'Marcar como no firmada' : 'Marcar como firmada'}
+                        className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                          r.firmada
+                            ? 'text-green-600 hover:text-slate-400'
+                            : 'text-slate-300 hover:text-green-500'
+                        }`}
+                      >
+                        {r.firmada
+                          ? <><CheckCircle2 size={16} /> Firmada</>
+                          : <><Circle size={16} /> Pendiente</>
+                        }
+                      </button>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">

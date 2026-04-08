@@ -99,6 +99,7 @@ export interface Responsiva {
   texto_legal: string | null
   fecha: string
   equipos: EquipoResponsiva[]
+  firmada: boolean
   created_at: string
   // join
   usuario?: Usuario
