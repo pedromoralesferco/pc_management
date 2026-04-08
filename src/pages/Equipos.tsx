@@ -207,6 +207,15 @@ export default function Equipos() {
       motivo: asignarForm.motivo || null,
       asignado_por: getSession()?.nombre ?? null,
     })
+    // Resetear firmada en la responsiva más reciente del usuario
+    const { data: lastR } = await supabase
+      .from('responsivas')
+      .select('id')
+      .eq('usuario_id', asignarForm.usuario_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    if (lastR?.id) await supabase.from('responsivas').update({ firmada: false }).eq('id', lastR.id)
     setAsignarSaving(false)
     setAsignarOpen(false)
     fetchEquipos()

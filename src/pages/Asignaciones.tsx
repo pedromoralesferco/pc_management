@@ -70,6 +70,20 @@ export default function Asignaciones() {
     return matchSearch && matchActiva
   })
 
+  async function resetFirmadaUsuario(usuario_id: string) {
+    // La responsiva más reciente del usuario deja de ser válida cuando cambia su set de equipos
+    const { data } = await supabase
+      .from('responsivas')
+      .select('id')
+      .eq('usuario_id', usuario_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    if (data?.id) {
+      await supabase.from('responsivas').update({ firmada: false }).eq('id', data.id)
+    }
+  }
+
   async function handleSave() {
     if (!form.equipo_id || !form.usuario_id || !form.fecha_asignacion) return
     setSaving(true)
@@ -81,6 +95,7 @@ export default function Asignaciones() {
       asignado_por: form.asignado_por || null,
       notas: form.notas || null,
     })
+    await resetFirmadaUsuario(form.usuario_id)
     setSaving(false)
     setModalOpen(false)
     setForm(makeEmptyForm())
@@ -89,7 +104,9 @@ export default function Asignaciones() {
 
   async function handleDevolucion() {
     if (!devolucionId) return
+    const asig = asignaciones.find(a => a.id === devolucionId)
     await supabase.from('asignaciones').update({ fecha_devolucion: fechaDevolucion }).eq('id', devolucionId)
+    if (asig?.usuario_id) await resetFirmadaUsuario(asig.usuario_id)
     setDevolucionId(null)
     fetchAll()
   }
