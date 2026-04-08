@@ -13,6 +13,9 @@ CREATE TABLE equipos (
   marca             TEXT NOT NULL,
   modelo            TEXT NOT NULL,
   numero_serie      TEXT NOT NULL,
+  procesador        TEXT,
+  ram               TEXT,
+  almacenamiento    TEXT,
   descripcion       TEXT,
   estado            TEXT NOT NULL DEFAULT 'Activo'
                       CHECK (estado IN ('Activo', 'En mantenimiento', 'Dado de baja', 'En bodega')),
@@ -150,6 +153,14 @@ CREATE POLICY "allow_all_responsivas" ON responsivas FOR ALL USING (true) WITH C
 -- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS pais TEXT;
 -- ========================
 -- (ya incluido en el CREATE TABLE de arriba si se corre desde cero)
+
+-- ========================
+-- CAMPOS: procesador, ram, almacenamiento
+-- Ejecutar en Supabase SQL Editor si la tabla ya existe:
+-- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS procesador TEXT;
+-- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS ram TEXT;
+-- ALTER TABLE equipos ADD COLUMN IF NOT EXISTS almacenamiento TEXT;
+-- ========================
 
 -- ========================
 -- TABLA: configuracion

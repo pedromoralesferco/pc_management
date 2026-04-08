@@ -17,6 +17,9 @@ export interface Equipo {
   garantia_hasta: string | null
   proveedor: string | null
   precio_compra: number | null
+  procesador: string | null
+  ram: string | null
+  almacenamiento: string | null
   notas: string | null
   created_at: string
   updated_at: string

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Search, Edit2, Eye, Trash2, PowerOff, User, Package } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { getSession } from '../lib/auth'
 import type { Equipo, TipoEquipo, EstadoEquipo } from '../types'
 import { PAIS_MONEDA, PAISES } from '../lib/moneda'
 import Badge from '../components/Badge'
@@ -24,6 +25,9 @@ const emptyForm = {
   marca: '',
   modelo: '',
   numero_serie: '',
+  procesador: '',
+  ram: '',
+  almacenamiento: '',
   descripcion: '',
   estado: 'Activo' as EstadoEquipo,
   pais: 'Guatemala',
@@ -33,6 +37,13 @@ const emptyForm = {
   precio_compra: '',
   notas: '',
 }
+
+type UsuarioSimple = { id: string; nombre: string; apellido: string; email: string }
+const makeAsignarForm = () => ({
+  usuario_id: '',
+  fecha_asignacion: new Date().toISOString().split('T')[0],
+  motivo: '',
+})
 
 type UsuarioAsig = { id: string; nombre: string; apellido: string }
 type EquipoConUsuario = Equipo & { _usuario?: UsuarioAsig }
@@ -57,6 +68,12 @@ export default function Equipos() {
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [bajaId, setBajaId] = useState<string | null>(null)
+  const [asignarOpen, setAsignarOpen] = useState(false)
+  const [nuevoEquipoId, setNuevoEquipoId] = useState<string | null>(null)
+  const [usuarios, setUsuarios] = useState<UsuarioSimple[]>([])
+  const [asignarForm, setAsignarForm] = useState(makeAsignarForm)
+  const [asignarSaving, setAsignarSaving] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function fetchEquipos() {
     setLoading(true)
@@ -129,6 +146,9 @@ export default function Equipos() {
       marca: e.marca,
       modelo: e.modelo,
       numero_serie: e.numero_serie,
+      procesador: e.procesador ?? '',
+      ram: e.ram ?? '',
+      almacenamiento: e.almacenamiento ?? '',
       descripcion: e.descripcion ?? '',
       estado: e.estado,
       pais: e.pais ?? 'Guatemala',
@@ -149,6 +169,9 @@ export default function Equipos() {
       precio_compra: form.precio_compra ? parseFloat(form.precio_compra) : null,
       fecha_compra: form.fecha_compra || null,
       garantia_hasta: form.garantia_hasta || null,
+      procesador: form.procesador || null,
+      ram: form.ram || null,
+      almacenamiento: form.almacenamiento || null,
       descripcion: form.descripcion || null,
       proveedor: form.proveedor || null,
       pais: form.pais || null,
@@ -156,16 +179,49 @@ export default function Equipos() {
     }
     if (editTarget) {
       await supabase.from('equipos').update(payload).eq('id', editTarget.id)
+      setSaving(false)
+      setModalOpen(false)
+      fetchEquipos()
     } else {
-      await supabase.from('equipos').insert(payload)
+      const { data: nuevoEquipo } = await supabase.from('equipos').insert(payload).select('id').single()
+      setSaving(false)
+      setModalOpen(false)
+      fetchEquipos()
+      if (nuevoEquipo?.id) {
+        setNuevoEquipoId(nuevoEquipo.id)
+        setAsignarForm(makeAsignarForm())
+        const { data: us } = await supabase.from('usuarios').select('id, nombre, apellido, email').eq('activo', true).order('nombre')
+        setUsuarios((us as UsuarioSimple[]) ?? [])
+        setAsignarOpen(true)
+      }
     }
-    setSaving(false)
-    setModalOpen(false)
+  }
+
+  async function handleAsignar() {
+    if (!asignarForm.usuario_id || !nuevoEquipoId) return
+    setAsignarSaving(true)
+    await supabase.from('asignaciones').insert({
+      equipo_id: nuevoEquipoId,
+      usuario_id: asignarForm.usuario_id,
+      fecha_asignacion: asignarForm.fecha_asignacion,
+      motivo: asignarForm.motivo || null,
+      asignado_por: getSession()?.nombre ?? null,
+    })
+    setAsignarSaving(false)
+    setAsignarOpen(false)
     fetchEquipos()
   }
 
   async function handleDelete(id: string) {
-    await supabase.from('equipos').delete().eq('id', id)
+    setDeleteError(null)
+    // Cascade manual: FK ON DELETE RESTRICT impide borrar si hay registros relacionados
+    await supabase.from('asignaciones').delete().eq('equipo_id', id)
+    await supabase.from('mantenimientos').delete().eq('equipo_id', id)
+    const { error } = await supabase.from('equipos').delete().eq('id', id)
+    if (error) {
+      setDeleteError('No se pudo eliminar: ' + error.message)
+      return
+    }
     setDeleteId(null)
     fetchEquipos()
   }
@@ -389,6 +445,33 @@ export default function Equipos() {
             />
           </div>
           <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Procesador</label>
+            <input
+              value={form.procesador}
+              onChange={e => setForm(f => ({ ...f, procesador: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: Intel Core i5-1235U"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">RAM</label>
+            <input
+              value={form.ram}
+              onChange={e => setForm(f => ({ ...f, ram: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: 16 GB DDR4"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Almacenamiento</label>
+            <input
+              value={form.almacenamiento}
+              onChange={e => setForm(f => ({ ...f, almacenamiento: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: 512 GB SSD NVMe"
+            />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Estado</label>
             <select
               value={form.estado}
@@ -504,10 +587,15 @@ export default function Equipos() {
       </Modal>
 
       {/* Modal confirmar borrado */}
-      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Confirmar eliminación" size="sm">
-        <p className="text-sm text-slate-600">¿Estás seguro que deseas eliminar este equipo? Esta acción no se puede deshacer.</p>
+      <Modal open={!!deleteId} onClose={() => { setDeleteId(null); setDeleteError(null) }} title="Confirmar eliminación" size="sm">
+        <p className="text-sm text-slate-600">
+          ¿Estás seguro que deseas eliminar este equipo? Se eliminarán también todas sus asignaciones y mantenimientos. Esta acción no se puede deshacer.
+        </p>
+        {deleteError && (
+          <p className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{deleteError}</p>
+        )}
         <div className="flex justify-end gap-3 mt-6">
-          <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
+          <button onClick={() => { setDeleteId(null); setDeleteError(null) }} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
             Cancelar
           </button>
           <button
@@ -515,6 +603,56 @@ export default function Equipos() {
             className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
             Eliminar
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal asignar al crear */}
+      <Modal open={asignarOpen} onClose={() => setAsignarOpen(false)} title="¿Asignar equipo ahora?" size="md">
+        <p className="text-sm text-slate-500 mb-4">El equipo fue creado. Puedes asignarlo a un usuario de inmediato o hacerlo después desde Asignaciones.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Usuario *</label>
+            <select
+              value={asignarForm.usuario_id}
+              onChange={e => setAsignarForm(f => ({ ...f, usuario_id: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">Selecciona un usuario...</option>
+              {usuarios.map(u => (
+                <option key={u.id} value={u.id}>{u.nombre} {u.apellido} — {u.email}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Fecha de asignación</label>
+            <input
+              type="date"
+              value={asignarForm.fecha_asignacion}
+              onChange={e => setAsignarForm(f => ({ ...f, fecha_asignacion: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Motivo</label>
+            <input
+              value={asignarForm.motivo}
+              onChange={e => setAsignarForm(f => ({ ...f, motivo: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Ej: Empleado nuevo, reemplazo..."
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={() => setAsignarOpen(false)} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
+            Omitir
+          </button>
+          <button
+            onClick={handleAsignar}
+            disabled={!asignarForm.usuario_id || asignarSaving}
+            className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
+          >
+            {asignarSaving ? 'Asignando...' : 'Asignar'}
           </button>
         </div>
       </Modal>

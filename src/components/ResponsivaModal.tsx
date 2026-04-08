@@ -225,10 +225,15 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
   const d: EditorData = { ...initialData, empresa, observaciones }
 
   function handlePrint() {
-    const el = document.getElementById('responsiva-print')
-    if (!el) return
-    el.innerHTML = buildPreviewHtml(d)
-    window.print()
+    const html = buildPreviewHtml(d)
+    const w = window.open('', '_blank', 'width=820,height=1060')
+    if (!w) return
+    w.document.write(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Responsiva — ${d.nombre}</title>` +
+      `<style>body{font-family:Arial,sans-serif;font-size:10pt;color:#000;padding:10mm 14mm;margin:0}</style></head>` +
+      `<body onload="window.focus();window.print()">${html}</body></html>`
+    )
+    w.document.close()
   }
 
   async function handleSave() {
@@ -275,10 +280,10 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
           </div>
 
           {/* Body */}
-          <div className="grid grid-cols-[260px_1fr] overflow-hidden" style={{ maxHeight: '76vh' }}>
+          <div className="grid grid-cols-[260px_1fr] overflow-hidden" style={{ height: '76vh' }}>
 
             {/* LEFT: resumen + solo observaciones editable */}
-            <div className="overflow-y-auto px-5 py-4 border-r border-slate-100 space-y-4">
+            <div className="overflow-y-auto px-5 py-4 border-r border-slate-100 space-y-4 min-h-0">
 
               {/* Datos del responsable — solo lectura */}
               <div>
@@ -330,7 +335,7 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
             </div>
 
             {/* RIGHT: Live preview */}
-            <div className="overflow-y-auto p-5 bg-slate-50">
+            <div className="overflow-y-auto p-5 bg-slate-50 min-h-0">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Vista previa</p>
               <div
                 className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm"
@@ -361,7 +366,6 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
           </div>
         </div>
       </div>
-      <div id="responsiva-print" className="hidden" />
     </>
   )
 }

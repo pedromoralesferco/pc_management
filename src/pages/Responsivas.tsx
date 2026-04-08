@@ -27,10 +27,15 @@ export default function Responsivas() {
   useEffect(() => { fetchAll() }, [])
 
   function handlePrint(r: Responsiva) {
-    const el = document.getElementById('responsiva-print')
-    if (!el) return
-    el.innerHTML = buildPreviewHtml(buildEditorFromResponsiva(r))
-    window.print()
+    const html = buildPreviewHtml(buildEditorFromResponsiva(r))
+    const w = window.open('', '_blank', 'width=820,height=1060')
+    if (!w) return
+    w.document.write(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Responsiva — ${r.nombre}</title>` +
+      `<style>body{font-family:Arial,sans-serif;font-size:10pt;color:#000;padding:10mm 14mm;margin:0}</style></head>` +
+      `<body onload="window.focus();window.print()">${html}</body></html>`
+    )
+    w.document.close()
   }
 
   async function handleDelete() {
@@ -181,8 +186,6 @@ export default function Responsivas() {
         </div>
       </Modal>
 
-      {/* Hidden print target */}
-      <div id="responsiva-print" className="hidden" />
     </div>
   )
 }

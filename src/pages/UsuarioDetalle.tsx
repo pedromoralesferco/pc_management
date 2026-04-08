@@ -22,7 +22,7 @@ export default function UsuarioDetalle() {
       const [{ data: u }, { data: asig }] = await Promise.all([
         supabase.from('usuarios').select('*').eq('id', id!).single(),
         supabase.from('asignaciones')
-          .select('*, equipo:equipos(correlativo_ferco, marca, modelo, tipo, estado, numero_serie, precio_compra)')
+          .select('*, equipo:equipos(correlativo_ferco, marca, modelo, tipo, estado, numero_serie, precio_compra, pais)')
           .eq('usuario_id', id!)
           .order('fecha_asignacion', { ascending: false }),
       ])
@@ -161,7 +161,7 @@ export default function UsuarioDetalle() {
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold text-slate-700">
-                  {formatMoneda((a.equipo as any)?.precio_compra, usuario.pais)}
+                  {formatMoneda((a.equipo as any)?.precio_compra, (a.equipo as any)?.pais)}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Desde {format(new Date(a.fecha_asignacion), 'dd MMM yyyy', { locale: es })}
