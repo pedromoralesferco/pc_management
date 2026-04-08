@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Edit2, Eye, Trash2, PowerOff, User, Package } from 'lucide-react'
+import { Plus, Search, Edit2, Eye, Trash2, PowerOff, User, Package, UserPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { getSession } from '../lib/auth'
 import type { Equipo, TipoEquipo, EstadoEquipo } from '../types'
@@ -131,6 +131,14 @@ export default function Equipos() {
       .forEach(g => result.push({ tipo: 'usuario', usuario: g.usuario, equipos: g.equipos }))
     return result
   })()
+
+  async function openAsignar(equipoId: string) {
+    setNuevoEquipoId(equipoId)
+    setAsignarForm(makeAsignarForm())
+    const { data: us } = await supabase.from('usuarios').select('id, nombre, apellido, email').eq('activo', true).order('nombre')
+    setUsuarios((us as UsuarioSimple[]) ?? [])
+    setAsignarOpen(true)
+  }
 
   function openCreate() {
     setEditTarget(null)
@@ -274,6 +282,15 @@ export default function Equipos() {
           >
             <Edit2 size={14} />
           </button>
+          {!e._usuario && e.estado === 'Activo' && (
+            <button
+              onClick={() => openAsignar(e.id)}
+              className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors"
+              title="Asignar equipo"
+            >
+              <UserPlus size={14} />
+            </button>
+          )}
           {e.estado !== 'Dado de baja' && (
             <button
               onClick={() => setBajaId(e.id)}
