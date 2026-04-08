@@ -50,6 +50,15 @@ export default function Responsivas() {
     setResponsivas(prev => prev.map(x => x.id === r.id ? { ...x, firmada: !r.firmada } : x))
   }
 
+  // La más reciente por usuario (ya vienen ordenadas por created_at desc)
+  const activaIdPorUsuario: Record<string, string> = {}
+  responsivas.forEach(r => {
+    if (r.usuario_id && !activaIdPorUsuario[r.usuario_id]) {
+      activaIdPorUsuario[r.usuario_id] = r.id
+    }
+  })
+  const isActiva = (r: Responsiva) => !r.usuario_id || activaIdPorUsuario[r.usuario_id] === r.id
+
   const filtered = responsivas.filter(r => {
     const q = search.toLowerCase()
     return !q || [r.nombre, r.cargo, r.departamento, r.centro_costo, r.pais]
@@ -136,20 +145,29 @@ export default function Responsivas() {
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleFirmada(r)}
-                        title={r.firmada ? 'Marcar como no firmada' : 'Marcar como firmada'}
-                        className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                          r.firmada
-                            ? 'text-green-600 hover:text-slate-400'
-                            : 'text-slate-300 hover:text-green-500'
-                        }`}
-                      >
-                        {r.firmada
-                          ? <><CheckCircle2 size={16} /> Firmada</>
-                          : <><Circle size={16} /> Pendiente</>
-                        }
-                      </button>
+                      {isActiva(r) ? (
+                        <button
+                          onClick={() => toggleFirmada(r)}
+                          title={r.firmada ? 'Marcar como pendiente' : 'Marcar como firmada'}
+                          className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                            r.firmada
+                              ? 'text-green-600 hover:text-slate-400'
+                              : 'text-slate-300 hover:text-green-500'
+                          }`}
+                        >
+                          {r.firmada
+                            ? <><CheckCircle2 size={16} /> Firmada</>
+                            : <><Circle size={16} /> Pendiente</>
+                          }
+                        </button>
+                      ) : (
+                        <span className={`flex items-center gap-1.5 text-xs font-medium opacity-40 cursor-default ${r.firmada ? 'text-green-600' : 'text-slate-400'}`}>
+                          {r.firmada
+                            ? <><CheckCircle2 size={16} /> Inactivo · Firmado</>
+                            : <><Circle size={16} /> Inactivo · Sin firma</>
+                          }
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">

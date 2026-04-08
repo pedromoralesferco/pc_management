@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Monitor, FileText } from 'lucide-react'
+import { ArrowLeft, Monitor, FileText, CheckCircle2, Circle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { formatMoneda, monedaDePais } from '../lib/moneda'
 import type { Usuario, Asignacion } from '../types'
@@ -16,6 +16,18 @@ export default function UsuarioDetalle() {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [loading, setLoading] = useState(true)
   const [responsivaOpen, setResponsivaOpen] = useState(false)
+  const [responsivaActiva, setResponsivaActiva] = useState<{ id: string; firmada: boolean } | null>(null)
+
+  async function fetchResponsivaActiva() {
+    const { data } = await supabase
+      .from('responsivas')
+      .select('id, firmada')
+      .eq('usuario_id', id!)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    setResponsivaActiva(data ?? null)
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -31,7 +43,15 @@ export default function UsuarioDetalle() {
       setLoading(false)
     }
     fetchData()
+    fetchResponsivaActiva()
   }, [id])
+
+  async function toggleFirmada() {
+    if (!responsivaActiva) return
+    const nuevaFirmada = !responsivaActiva.firmada
+    await supabase.from('responsivas').update({ firmada: nuevaFirmada }).eq('id', responsivaActiva.id)
+    setResponsivaActiva(r => r ? { ...r, firmada: nuevaFirmada } : r)
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -76,6 +96,22 @@ export default function UsuarioDetalle() {
           <p className="text-slate-500 text-sm">{usuario.email}</p>
         </div>
         <div className="ml-auto flex items-center gap-3">
+          {responsivaActiva && (
+            <button
+              onClick={toggleFirmada}
+              title={responsivaActiva.firmada ? 'Marcar como pendiente de firma' : 'Marcar responsiva como firmada'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                responsivaActiva.firmada
+                  ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+                  : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {responsivaActiva.firmada
+                ? <><CheckCircle2 size={15} /> Responsiva Firmada</>
+                : <><Circle size={15} /> Pendiente de Firma</>
+              }
+            </button>
+          )}
           {asignacionesActivas.length > 0 && (
             <button
               onClick={() => setResponsivaOpen(true)}
@@ -207,7 +243,7 @@ export default function UsuarioDetalle() {
           open={responsivaOpen}
           onClose={() => setResponsivaOpen(false)}
           data={buildEditorFromUsuario(usuario, asignacionesActivas)}
-          onSaved={() => setResponsivaOpen(false)}
+          onSaved={() => { fetchResponsivaActiva() }}
         />
       )}
     </div>

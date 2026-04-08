@@ -229,18 +229,59 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
   const [observaciones, setObservaciones] = useState(initialData.observaciones)
   const [empresa, setEmpresa] = useState(initialData.empresa)
   const [saving, setSaving] = useState(false)
-
+  const [savedId, setSavedId] = useState<string | null>(editId ?? null)
 
   useEffect(() => {
     setObservaciones(initialData.observaciones)
-    getConfig().then(cfg => setEmpresa(cfg.nombre_empresa))
-  }, [initialData])
+    setSavedId(editId ?? null)
+  }, [initialData, editId])
+
+  // Auto-guardar al abrir si es una responsiva nueva
+  useEffect(() => {
+    if (!editId) {
+      autoSave()
+    }
+  }, [])
+
+  async function autoSave() {
+    const cfg = await getConfig()
+    const empresaNombre = cfg.nombre_empresa
+    setEmpresa(empresaNombre)
+    const d: EditorData = { ...initialData, empresa: empresaNombre, observaciones: initialData.observaciones }
+    const payload = buildPayload(d, initialData.observaciones)
+    const { data } = await supabase.from('responsivas').insert(payload).select('id').single()
+    if (data?.id) {
+      setSavedId(data.id)
+      onSaved?.()
+    }
+  }
+
+  function buildPayload(d: EditorData, obs: string) {
+    return {
+      usuario_id: d.usuario_id,
+      nombre: d.nombre,
+      cargo: d.cargo || null,
+      departamento: d.departamento || null,
+      centro_costo: d.centro_costo || null,
+      pais: d.pais || null,
+      tipo_asignacion: d.tipo_asignacion,
+      entregado_por: d.entregado_por || null,
+      observaciones: obs || null,
+      texto_legal: d.texto_legal || null,
+      fecha: d.fecha,
+      equipos: d.equipos,
+    }
+  }
 
   if (!open) return null
 
   const d: EditorData = { ...initialData, empresa, observaciones }
 
-  function handlePrint() {
+  async function handlePrint() {
+    // Guardar observaciones actuales antes de imprimir
+    if (savedId) {
+      await supabase.from('responsivas').update({ observaciones: observaciones || null }).eq('id', savedId)
+    }
     const html = buildPreviewHtml(d)
     const w = window.open('', '_blank', 'width=820,height=1060')
     if (!w) return
@@ -253,26 +294,10 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
   }
 
   async function handleSave() {
+    // Solo para modo edición (desde historial de Responsivas)
+    if (!savedId) return
     setSaving(true)
-    const payload = {
-      usuario_id: d.usuario_id,
-      nombre: d.nombre,
-      cargo: d.cargo || null,
-      departamento: d.departamento || null,
-      centro_costo: d.centro_costo || null,
-      pais: d.pais || null,
-      tipo_asignacion: d.tipo_asignacion,
-      entregado_por: d.entregado_por || null,
-      observaciones: observaciones || null,
-      texto_legal: d.texto_legal || null,
-      fecha: d.fecha,
-      equipos: d.equipos,
-    }
-    if (editId) {
-      await supabase.from('responsivas').update(payload).eq('id', editId)
-    } else {
-      await supabase.from('responsivas').insert(payload)
-    }
+    await supabase.from('responsivas').update(buildPayload(d, observaciones)).eq('id', savedId)
     setSaving(false)
     onSaved?.()
     onClose()
@@ -364,7 +389,7 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
           {/* Footer */}
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 flex-shrink-0">
             <button onClick={onClose} className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
-              Cancelar
+              Cerrar
             </button>
             <button
               onClick={handlePrint}
@@ -372,13 +397,15 @@ export default function ResponsivaModal({ open, onClose, data: initialData, edit
             >
               <Printer size={14} /> Imprimir / PDF
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
-            >
-              {saving ? 'Guardando...' : editId ? 'Actualizar' : 'Guardar copia'}
-            </button>
+            {editId && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-2 text-sm bg-primary-500 text-primary-800 font-bold rounded-lg hover:bg-primary-600 disabled:opacity-60"
+              >
+                {saving ? 'Guardando...' : 'Actualizar'}
+              </button>
+            )}
           </div>
         </div>
       </div>

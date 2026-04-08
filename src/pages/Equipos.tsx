@@ -369,13 +369,16 @@ export default function Equipos() {
                 ) : (
                   <User size={15} className="text-primary-600" />
                 )}
-                <span className={`font-semibold text-sm ${
-                  grupo.tipo === 'libre' ? 'text-slate-600' : 'text-primary-700'
-                }`}>
-                  {grupo.tipo === 'libre'
-                    ? 'Sin Asignación'
-                    : `${grupo.usuario!.nombre} ${grupo.usuario!.apellido}`}
-                </span>
+                {grupo.tipo === 'libre' ? (
+                  <span className="font-semibold text-sm text-slate-600">Sin Asignación</span>
+                ) : (
+                  <button
+                    onClick={() => navigate(`/usuarios/${grupo.usuario!.id}`)}
+                    className="font-semibold text-sm text-primary-700 hover:text-primary-900 hover:underline transition-colors"
+                  >
+                    {grupo.usuario!.nombre} {grupo.usuario!.apellido}
+                  </button>
+                )}
                 <span className="text-xs text-slate-400 font-normal ml-1">
                   ({grupo.equipos.length} equipo{grupo.equipos.length !== 1 ? 's' : ''})
                 </span>
