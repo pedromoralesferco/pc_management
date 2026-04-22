@@ -9,6 +9,11 @@ import Modal from '../components/Modal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
+const parseDate = (d: string) => new Date(d + 'T00:00:00')
+
+const PAISES_USUARIO = ['Guatemala', 'México', 'El Salvador', 'Honduras', 'Costa Rica', 'Panamá', 'Colombia', 'Otro']
+const nuevoUsuarioEmpty = () => ({ nombre: '', apellido: '', email: '', pais: 'Guatemala', centro_costo: '', departamento: '', cargo: '' })
+
 const makeEmptyForm = () => ({
   equipo_id: '',
   usuario_id: '',
@@ -31,9 +36,31 @@ export default function Asignaciones() {
   const [fechaDevolucion, setFechaDevolucion] = useState(new Date().toISOString().split('T')[0])
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(makeEmptyForm)
+  const [creandoUsuario, setCreandoUsuario] = useState(false)
+  const [nuevoUsuarioForm, setNuevoUsuarioForm] = useState(nuevoUsuarioEmpty)
+  const [creandoUsuarioSaving, setCreandoUsuarioSaving] = useState(false)
 
   function handleGenerarResponsiva(a: Asignacion) {
     navigate(`/usuarios/${a.usuario_id}`)
+  }
+
+  async function handleCrearNuevoUsuario() {
+    const { nombre, apellido, email, centro_costo } = nuevoUsuarioForm
+    if (!nombre || !apellido || !email || !centro_costo) return
+    setCreandoUsuarioSaving(true)
+    const { data } = await supabase.from('usuarios').insert({
+      ...nuevoUsuarioForm,
+      departamento: nuevoUsuarioForm.departamento || null,
+      cargo: nuevoUsuarioForm.cargo || null,
+      activo: true,
+    }).select('id, nombre, apellido, email, centro_costo, pais').single()
+    if (data) {
+      setUsuarios(prev => [...prev, data as Usuario].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+      setForm(f => ({ ...f, usuario_id: data.id }))
+      setCreandoUsuario(false)
+      setNuevoUsuarioForm(nuevoUsuarioEmpty())
+    }
+    setCreandoUsuarioSaving(false)
   }
 
   async function fetchAll() {
@@ -121,7 +148,7 @@ export default function Asignaciones() {
           </p>
         </div>
         <button
-          onClick={() => { setForm(makeEmptyForm()); setModalOpen(true) }}
+          onClick={() => { setForm(makeEmptyForm()); setCreandoUsuario(false); setNuevoUsuarioForm(nuevoUsuarioEmpty()); setModalOpen(true) }}
           className="flex items-center gap-2 bg-primary-500 text-primary-800 px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-600 transition-colors"
         >
           <Plus size={16} /> Nueva Asignación
@@ -181,10 +208,10 @@ export default function Asignaciones() {
                     </td>
                     <td className="px-4 py-3 text-slate-500">{a.usuario?.centro_costo}</td>
                     <td className="px-4 py-3 text-slate-500">
-                      {format(new Date(a.fecha_asignacion), 'dd MMM yyyy', { locale: es })}
+                      {format(parseDate(a.fecha_asignacion), 'dd MMM yyyy', { locale: es })}
                     </td>
                     <td className="px-4 py-3 text-slate-500">
-                      {a.fecha_devolucion ? format(new Date(a.fecha_devolucion), 'dd MMM yyyy', { locale: es }) : '—'}
+                      {a.fecha_devolucion ? format(parseDate(a.fecha_devolucion), 'dd MMM yyyy', { locale: es }) : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <Badge label={a.fecha_devolucion ? 'Devuelto' : 'Activo'} variant={a.fecha_devolucion ? 'default' : 'success'} />
@@ -247,7 +274,43 @@ export default function Asignaciones() {
                 <option key={u.id} value={u.id}>{u.nombre} {u.apellido} — {u.email}</option>
               ))}
             </select>
+            {!creandoUsuario && (
+              <button
+                type="button"
+                onClick={() => setCreandoUsuario(true)}
+                className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 hover:underline"
+              >
+                + Crear nuevo usuario
+              </button>
+            )}
           </div>
+
+          {creandoUsuario && (
+            <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-600">Nuevo usuario</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input value={nuevoUsuarioForm.nombre} onChange={e => setNuevoUsuarioForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre *" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input value={nuevoUsuarioForm.apellido} onChange={e => setNuevoUsuarioForm(f => ({ ...f, apellido: e.target.value }))} placeholder="Apellido *" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input type="email" value={nuevoUsuarioForm.email} onChange={e => setNuevoUsuarioForm(f => ({ ...f, email: e.target.value }))} placeholder="Email *" className="col-span-2 border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input value={nuevoUsuarioForm.centro_costo} onChange={e => setNuevoUsuarioForm(f => ({ ...f, centro_costo: e.target.value }))} placeholder="Centro de costo *" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <select value={nuevoUsuarioForm.pais} onChange={e => setNuevoUsuarioForm(f => ({ ...f, pais: e.target.value }))} className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500">
+                  {PAISES_USUARIO.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <input value={nuevoUsuarioForm.cargo} onChange={e => setNuevoUsuarioForm(f => ({ ...f, cargo: e.target.value }))} placeholder="Cargo" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input value={nuevoUsuarioForm.departamento} onChange={e => setNuevoUsuarioForm(f => ({ ...f, departamento: e.target.value }))} placeholder="Departamento" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => { setCreandoUsuario(false); setNuevoUsuarioForm(nuevoUsuarioEmpty()) }} className="text-xs text-slate-500 hover:text-slate-700">Cancelar</button>
+                <button
+                  onClick={handleCrearNuevoUsuario}
+                  disabled={creandoUsuarioSaving || !nuevoUsuarioForm.nombre || !nuevoUsuarioForm.apellido || !nuevoUsuarioForm.email || !nuevoUsuarioForm.centro_costo}
+                  className="px-3 py-1 text-xs bg-primary-500 text-primary-800 font-bold rounded hover:bg-primary-600 disabled:opacity-60"
+                >
+                  {creandoUsuarioSaving ? 'Creando...' : 'Crear y seleccionar'}
+                </button>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Fecha de Asignación *</label>
             <input

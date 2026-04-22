@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search, Edit2, Eye, UserCheck, UserX } from 'lucide-react'
+import { Plus, Search, Edit2, Eye, UserCheck, UserX, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { Usuario } from '../types'
 import Badge from '../components/Badge'
@@ -29,14 +29,27 @@ export default function Usuarios() {
   const [editTarget, setEditTarget] = useState<Usuario | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [soloConResponsivaPendiente, setSoloConResponsivaPendiente] = useState(false)
+  const [responsivaPendienteIds, setResponsivaPendienteIds] = useState<Set<string>>(new Set())
 
   async function fetchUsuarios() {
     setLoading(true)
-    const { data } = await supabase
-      .from('usuarios')
-      .select('*')
-      .order('nombre')
-    setUsuarios(data ?? [])
+    const [{ data: usuariosData }, { data: responsivData }] = await Promise.all([
+      supabase.from('usuarios').select('*').order('nombre'),
+      supabase.from('responsivas').select('usuario_id, firmada, created_at')
+        .not('usuario_id', 'is', null)
+        .order('created_at', { ascending: false }),
+    ])
+    setUsuarios(usuariosData ?? [])
+    // La más reciente por usuario (ya vienen ordenadas desc)
+    const latestPerUser: Record<string, boolean> = {}
+    ;(responsivData ?? []).forEach((r: any) => {
+      if (r.usuario_id && !(r.usuario_id in latestPerUser)) {
+        latestPerUser[r.usuario_id] = r.firmada
+      }
+    })
+    const pendientes = new Set(Object.entries(latestPerUser).filter(([, f]) => !f).map(([id]) => id))
+    setResponsivaPendienteIds(pendientes)
     setLoading(false)
   }
 
@@ -46,7 +59,8 @@ export default function Usuarios() {
     const q = search.toLowerCase()
     const matchSearch = !q || [u.email, u.nombre, u.apellido, u.centro_costo, u.departamento ?? '', u.cargo ?? ''].some(v => v.toLowerCase().includes(q))
     const matchActivo = !soloActivos || u.activo
-    return matchSearch && matchActivo
+    const matchPendiente = !soloConResponsivaPendiente || responsivaPendienteIds.has(u.id)
+    return matchSearch && matchActivo && matchPendiente
   })
 
   function openCreate() {
@@ -128,6 +142,15 @@ export default function Usuarios() {
           />
           Solo activos
         </label>
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={soloConResponsivaPendiente}
+            onChange={e => setSoloConResponsivaPendiente(e.target.checked)}
+            className="rounded"
+          />
+          Con responsiva pendiente
+        </label>
       </div>
 
       {/* Tabla */}
@@ -147,12 +170,13 @@ export default function Usuarios() {
                   <th className="text-left px-4 py-3 font-medium text-slate-600">País</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Departamento</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Estado</th>
+                  <th className="text-left px-4 py-3 font-medium text-slate-600">Responsiva</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-10 text-slate-400">No se encontraron usuarios</td></tr>
+                  <tr><td colSpan={8} className="text-center py-10 text-slate-400">No se encontraron usuarios</td></tr>
                 )}
                 {filtered.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
@@ -166,6 +190,15 @@ export default function Usuarios() {
                     <td className="px-4 py-3 text-slate-500">{u.departamento ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Badge label={u.activo ? 'Activo' : 'Inactivo'} variant={u.activo ? 'success' : 'default'} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {responsivaPendienteIds.has(u.id) ? (
+                        <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                          <AlertCircle size={13} /> Pendiente
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 justify-end">

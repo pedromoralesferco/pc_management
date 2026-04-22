@@ -9,15 +9,42 @@ import Modal from '../components/Modal'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 
-const estadoVariant: Record<EstadoEquipo, 'success' | 'warning' | 'danger' | 'default'> = {
+const estadoVariant: Record<EstadoEquipo, 'success' | 'warning' | 'danger' | 'default' | 'info'> = {
   'Activo': 'success',
   'En mantenimiento': 'warning',
   'Dado de baja': 'danger',
   'En bodega': 'default',
+  'Préstamo': 'info',
 }
 
 const TIPOS: TipoEquipo[] = ['PC', 'Laptop', 'Monitor', 'Tablet', 'Otro']
-const ESTADOS: EstadoEquipo[] = ['Activo', 'En mantenimiento', 'Dado de baja', 'En bodega']
+const ESTADOS: EstadoEquipo[] = ['Activo', 'En mantenimiento', 'Dado de baja', 'En bodega', 'Préstamo']
+
+const PAIS_CODE: Record<string, string> = {
+  'Guatemala': 'GT', 'El Salvador': 'SV', 'Honduras': 'HN', 'México': 'MX',
+}
+
+const parseDate = (d: string) => new Date(d + 'T00:00:00')
+
+async function generarCorrelativoOtro(pais: string): Promise<string> {
+  const code = PAIS_CODE[pais] ?? 'GEN'
+  const prefix = `GEN-${code}-`
+  const { data } = await supabase
+    .from('equipos')
+    .select('correlativo_ferco')
+    .like('correlativo_ferco', `${prefix}%`)
+    .order('correlativo_ferco', { ascending: false })
+    .limit(1)
+  let num = 1
+  if (data?.[0]?.correlativo_ferco) {
+    const last = parseInt(data[0].correlativo_ferco.replace(prefix, ''), 10)
+    if (!isNaN(last)) num = last + 1
+  }
+  return `${prefix}${String(num).padStart(3, '0')}`
+}
+
+const PAISES_USUARIO = ['Guatemala', 'México', 'El Salvador', 'Honduras', 'Costa Rica', 'Panamá', 'Colombia', 'Otro']
+const nuevoUsuarioEmpty = () => ({ nombre: '', apellido: '', email: '', pais: 'Guatemala', centro_costo: '', departamento: '', cargo: '' })
 
 const emptyForm = {
   correlativo_ferco: '',
@@ -74,6 +101,9 @@ export default function Equipos() {
   const [asignarForm, setAsignarForm] = useState(makeAsignarForm)
   const [asignarSaving, setAsignarSaving] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [creandoUsuario, setCreandoUsuario] = useState(false)
+  const [nuevoUsuarioForm, setNuevoUsuarioForm] = useState(nuevoUsuarioEmpty)
+  const [creandoUsuarioSaving, setCreandoUsuarioSaving] = useState(false)
 
   async function fetchEquipos() {
     setLoading(true)
@@ -135,9 +165,30 @@ export default function Equipos() {
   async function openAsignar(equipoId: string) {
     setNuevoEquipoId(equipoId)
     setAsignarForm(makeAsignarForm())
+    setCreandoUsuario(false)
+    setNuevoUsuarioForm(nuevoUsuarioEmpty())
     const { data: us } = await supabase.from('usuarios').select('id, nombre, apellido, email').eq('activo', true).order('nombre')
     setUsuarios((us as UsuarioSimple[]) ?? [])
     setAsignarOpen(true)
+  }
+
+  async function handleCrearUsuarioEnAsignar() {
+    const { nombre, apellido, email, centro_costo } = nuevoUsuarioForm
+    if (!nombre || !apellido || !email || !centro_costo) return
+    setCreandoUsuarioSaving(true)
+    const { data } = await supabase.from('usuarios').insert({
+      ...nuevoUsuarioForm,
+      departamento: nuevoUsuarioForm.departamento || null,
+      cargo: nuevoUsuarioForm.cargo || null,
+      activo: true,
+    }).select('id, nombre, apellido, email').single()
+    if (data) {
+      setUsuarios(prev => [...prev, data as UsuarioSimple].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+      setAsignarForm(f => ({ ...f, usuario_id: data.id }))
+      setCreandoUsuario(false)
+      setNuevoUsuarioForm(nuevoUsuarioEmpty())
+    }
+    setCreandoUsuarioSaving(false)
   }
 
   function openCreate() {
@@ -198,6 +249,8 @@ export default function Equipos() {
       if (nuevoEquipo?.id) {
         setNuevoEquipoId(nuevoEquipo.id)
         setAsignarForm(makeAsignarForm())
+        setCreandoUsuario(false)
+        setNuevoUsuarioForm(nuevoUsuarioEmpty())
         const { data: us } = await supabase.from('usuarios').select('id, nombre, apellido, email').eq('activo', true).order('nombre')
         setUsuarios((us as UsuarioSimple[]) ?? [])
         setAsignarOpen(true)
@@ -265,9 +318,9 @@ export default function Equipos() {
           <Badge label={e.estado} variant={estadoVariant[e.estado]} />
         </div>
         <div className="hidden md:block text-slate-400 text-xs w-20">
-          {e.fecha_compra ? format(new Date(e.fecha_compra), 'dd/MM/yyyy') : '—'}
+          {e.fecha_compra ? format(parseDate(e.fecha_compra), 'dd/MM/yyyy') : '—'}
         </div>
-        <div className="flex items-center gap-1 justify-end flex-shrink-0">
+        <div className="flex items-center gap-1 justify-end w-[148px] flex-shrink-0">
           <button
             onClick={() => navigate(`/equipos/${e.id}`)}
             className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors"
@@ -282,7 +335,7 @@ export default function Equipos() {
           >
             <Edit2 size={14} />
           </button>
-          {!e._usuario && e.estado === 'Activo' && (
+          {!e._usuario && e.estado === 'Activo' ? (
             <button
               onClick={() => openAsignar(e.id)}
               className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors"
@@ -290,8 +343,10 @@ export default function Equipos() {
             >
               <UserPlus size={14} />
             </button>
+          ) : (
+            <span className="w-[26px]" />
           )}
-          {e.estado !== 'Dado de baja' && (
+          {e.estado !== 'Dado de baja' ? (
             <button
               onClick={() => setBajaId(e.id)}
               className="p-1.5 text-slate-400 hover:text-amber-600 transition-colors"
@@ -299,6 +354,8 @@ export default function Equipos() {
             >
               <PowerOff size={14} />
             </button>
+          ) : (
+            <span className="w-[26px]" />
           )}
           <button
             onClick={() => setDeleteId(e.id)}
@@ -408,7 +465,7 @@ export default function Equipos() {
                 <div className="hidden md:block w-20">País</div>
                 <div className="w-28 flex-shrink-0">Estado</div>
                 <div className="hidden md:block w-20">F. Compra</div>
-                <div className="w-24 flex-shrink-0" />
+                <div className="w-[148px] flex-shrink-0" />
               </div>
               {/* Rows */}
               <div className="divide-y divide-slate-100">
@@ -440,7 +497,14 @@ export default function Equipos() {
             <label className="block text-xs font-medium text-slate-600 mb-1">Tipo *</label>
             <select
               value={form.tipo}
-              onChange={e => setForm(f => ({ ...f, tipo: e.target.value as TipoEquipo }))}
+              onChange={async e => {
+                const newTipo = e.target.value as TipoEquipo
+                setForm(f => ({ ...f, tipo: newTipo }))
+                if (newTipo === 'Otro' && !editTarget) {
+                  const c = await generarCorrelativoOtro(form.pais)
+                  setForm(f => ({ ...f, tipo: newTipo, correlativo_ferco: c }))
+                }
+              }}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -541,7 +605,14 @@ export default function Equipos() {
             <label className="block text-xs font-medium text-slate-600 mb-1">País de compra</label>
             <select
               value={form.pais}
-              onChange={e => setForm(f => ({ ...f, pais: e.target.value }))}
+              onChange={async e => {
+                const newPais = e.target.value
+                setForm(f => ({ ...f, pais: newPais }))
+                if (form.tipo === 'Otro' && !editTarget) {
+                  const c = await generarCorrelativoOtro(newPais)
+                  setForm(f => ({ ...f, pais: newPais, correlativo_ferco: c }))
+                }
+              }}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {Object.entries(PAIS_MONEDA).map(([p, { simbolo }]) => (
@@ -652,7 +723,44 @@ export default function Equipos() {
                 <option key={u.id} value={u.id}>{u.nombre} {u.apellido} — {u.email}</option>
               ))}
             </select>
+            {!creandoUsuario && (
+              <button
+                type="button"
+                onClick={() => setCreandoUsuario(true)}
+                className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 hover:underline"
+              >
+                + Crear nuevo usuario
+              </button>
+            )}
           </div>
+
+          {creandoUsuario && (
+            <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-600">Nuevo usuario</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input value={nuevoUsuarioForm.nombre} onChange={e => setNuevoUsuarioForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre *" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input value={nuevoUsuarioForm.apellido} onChange={e => setNuevoUsuarioForm(f => ({ ...f, apellido: e.target.value }))} placeholder="Apellido *" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input type="email" value={nuevoUsuarioForm.email} onChange={e => setNuevoUsuarioForm(f => ({ ...f, email: e.target.value }))} placeholder="Email *" className="col-span-2 border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input value={nuevoUsuarioForm.centro_costo} onChange={e => setNuevoUsuarioForm(f => ({ ...f, centro_costo: e.target.value }))} placeholder="Centro de costo *" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <select value={nuevoUsuarioForm.pais} onChange={e => setNuevoUsuarioForm(f => ({ ...f, pais: e.target.value }))} className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500">
+                  {PAISES_USUARIO.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <input value={nuevoUsuarioForm.cargo} onChange={e => setNuevoUsuarioForm(f => ({ ...f, cargo: e.target.value }))} placeholder="Cargo" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input value={nuevoUsuarioForm.departamento} onChange={e => setNuevoUsuarioForm(f => ({ ...f, departamento: e.target.value }))} placeholder="Departamento" className="border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => { setCreandoUsuario(false); setNuevoUsuarioForm(nuevoUsuarioEmpty()) }} className="text-xs text-slate-500 hover:text-slate-700">Cancelar</button>
+                <button
+                  onClick={handleCrearUsuarioEnAsignar}
+                  disabled={creandoUsuarioSaving || !nuevoUsuarioForm.nombre || !nuevoUsuarioForm.apellido || !nuevoUsuarioForm.email || !nuevoUsuarioForm.centro_costo}
+                  className="px-3 py-1 text-xs bg-primary-500 text-primary-800 font-bold rounded hover:bg-primary-600 disabled:opacity-60"
+                >
+                  {creandoUsuarioSaving ? 'Creando...' : 'Crear y seleccionar'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Fecha de asignación</label>
             <input

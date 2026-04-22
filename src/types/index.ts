@@ -1,5 +1,5 @@
 export type TipoEquipo = 'PC' | 'Monitor' | 'Tablet' | 'Laptop' | 'Otro'
-export type EstadoEquipo = 'Activo' | 'En mantenimiento' | 'Dado de baja' | 'En bodega'
+export type EstadoEquipo = 'Activo' | 'En mantenimiento' | 'Dado de baja' | 'En bodega' | 'Préstamo'
 export type TipoMantenimiento = 'Preventivo' | 'Correctivo' | 'Reparacion'
 export type EstadoMantenimiento = 'Pendiente' | 'En progreso' | 'Completado' | 'Cancelado'
 

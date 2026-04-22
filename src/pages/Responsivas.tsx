@@ -14,6 +14,7 @@ export default function Responsivas() {
   const [search, setSearch] = useState('')
   const [editTarget, setEditTarget] = useState<Responsiva | null>(null)
   const [delId, setDelId] = useState<string | null>(null)
+  const [soloPendientes, setSoloPendientes] = useState(false)
   async function fetchAll() {
     setLoading(true)
     const { data } = await supabase
@@ -61,8 +62,10 @@ export default function Responsivas() {
 
   const filtered = responsivas.filter(r => {
     const q = search.toLowerCase()
-    return !q || [r.nombre, r.cargo, r.departamento, r.centro_costo, r.pais]
+    const matchSearch = !q || [r.nombre, r.cargo, r.departamento, r.centro_costo, r.pais]
       .some(v => v?.toLowerCase().includes(q))
+    const matchPendiente = !soloPendientes || (!r.firmada && isActiva(r))
+    return matchSearch && matchPendiente
   })
 
   return (
@@ -79,8 +82,8 @@ export default function Responsivas() {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <div className="relative max-w-sm">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-48">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
@@ -89,6 +92,10 @@ export default function Responsivas() {
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={soloPendientes} onChange={e => setSoloPendientes(e.target.checked)} className="rounded" />
+          Solo pendientes de firma
+        </label>
       </div>
 
       {/* Table */}
